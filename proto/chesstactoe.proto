@@ -1,0 +1,55 @@
+syntax="proto3";
+package chesstactoe;
+
+service Game {
+  rpc MovePiece(MovePieceRequest) returns (MovePieceResponse);
+  rpc Join(JoinRequest) returns (JoinResponse);
+  rpc SubscribeBoard(SubscribeBoardRequest) returns (stream BoardState);
+}
+
+message BoardState {
+  uint32 id = 1;
+  string lastMove = 2;
+  TicTacToe board = 3;
+}
+
+message JoinRequest {}
+
+message JoinResponse {
+  uint32 id = 1;
+}
+
+message SubscribeBoardRequest {
+  uint32 boardId = 1;
+}
+
+message MovePieceRequest {
+  repeated uint32 board = 1;
+  string alg = 2;
+}
+
+enum MoveResult {
+  RESULT_ERROR = 0;
+  RESULT_ILLEGAL = 1;
+  RESULT_SUCCESSFUL = 2;
+}
+
+message Chess {
+  uint32 winner = 1;
+  string FEN = 2;
+}
+
+message TicTacToe {
+  repeated Chess chesses = 1;
+  Color next = 2;
+}
+
+enum Color {
+  WHITE = 0;
+  BLACK = 1;
+}
+
+message MovePieceResponse {
+  MoveResult successful = 1;
+  BoardState board = 2;
+}
