@@ -24,6 +24,7 @@ regex = "1.6.0"
 tokio = {version = "1.21.0", features = ["rt-multi-thread", "macros"]}
 tokio-stream = "0.1.9"
 tonic = "0.8.1"
+uuid = {version = "1.1.2", features = ["v4"]}
 
 [build-dependencies]
 tonic-build = "0.8.0"

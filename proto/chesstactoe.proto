@@ -3,29 +3,35 @@ package chesstactoe;
 
 service Game {
   rpc MovePiece(MovePieceRequest) returns (MovePieceResponse);
-  rpc Join(JoinRequest) returns (JoinResponse);
-  rpc SubscribeBoard(SubscribeBoardRequest) returns (stream BoardState);
-}
-
-message BoardState {
-  uint32 id = 1;
-  string lastMove = 2;
-  TicTacToe board = 3;
+  rpc Join(JoinRequest) returns (stream JoinResponse);
+  rpc SubscribeBoard(SubscribeBoardRequest) returns (stream SubscribeBoardResponse);
 }
 
 message JoinRequest {}
 
 message JoinResponse {
-  uint32 id = 1;
+  enum GameStatus {
+    READY = 0;
+    NOT_READY = 1;
+  }
+
+  GameStatus status = 1;
+  string uuid = 2;
 }
 
 message SubscribeBoardRequest {
-  uint32 boardId = 1;
+  string uuid = 1;
+}
+
+message SubscribeBoardResponse {
+  Color color = 1;
+  TicTacToe game = 2;
 }
 
 message MovePieceRequest {
-  repeated uint32 board = 1;
+  uint32 board = 1;
   string alg = 2;
+  string uuid = 3;
 }
 
 enum MoveResult {
@@ -35,21 +41,22 @@ enum MoveResult {
 }
 
 message Chess {
-  uint32 winner = 1;
+  Color winner = 1;
   string FEN = 2;
 }
 
 message TicTacToe {
   repeated Chess chesses = 1;
   Color next = 2;
+  string lastMove = 3;
 }
 
 enum Color {
   WHITE = 0;
   BLACK = 1;
+  None = 2;
 }
 
 message MovePieceResponse {
   MoveResult successful = 1;
-  BoardState board = 2;
 }
