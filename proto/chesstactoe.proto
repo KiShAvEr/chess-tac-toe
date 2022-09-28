@@ -5,9 +5,18 @@ service Game {
   rpc MovePiece(MovePieceRequest) returns (MovePieceResponse);
   rpc Join(JoinRequest) returns (stream JoinResponse);
   rpc SubscribeBoard(SubscribeBoardRequest) returns (stream SubscribeBoardResponse);
+  rpc TakeBack(TakeBackRequest) returns (TakeBackResponse);
 }
 
+message TakeBackResponse {}
+
 message JoinRequest {}
+
+message TakeBackRequest {
+  string uuid = 1;
+  bool isResponse = 2;
+  bool accepted = 3;
+}
 
 message JoinResponse {
   enum GameStatus {
@@ -26,6 +35,12 @@ message SubscribeBoardRequest {
 message SubscribeBoardResponse {
   Color color = 1;
   TicTacToe game = 2;
+  MidGameRequest request = 3;
+}
+
+message MidGameRequest {
+  Color takeback = 1;
+  Color draw = 2;
 }
 
 message MovePieceRequest {

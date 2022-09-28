@@ -6,10 +6,11 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 use tokio::sync::mpsc::{self, Sender};
+use tonic::codegen::http::request;
 use tonic::{transport::Server, Request, Response, Status};
 use tokio_stream::wrappers::ReceiverStream;
 use helpers::{TicTacToe as HelperToe, TicError, ChessBoard, chesstactoe::{game_server::{Game, GameServer}, join_response::GameStatus}};
-use helpers::chesstactoe::{JoinRequest, JoinResponse, TicTacToe, MovePieceRequest, MovePieceResponse, Color, Chess, SubscribeBoardRequest, MoveResult, SubscribeBoardResponse};
+use helpers::chesstactoe::{JoinRequest, JoinResponse, TicTacToe, MovePieceRequest, MovePieceResponse, Color, Chess, SubscribeBoardRequest, MoveResult, SubscribeBoardResponse, TakeBackRequest, TakeBackResponse, MidGameRequest};
 use uuid::{Uuid, uuid};
 
 #[derive(Debug, Default)]
@@ -74,7 +75,11 @@ impl Game for GameService {
 
         let res = SubscribeBoardResponse {
             game: Some(TicTacToe { chesses: chesses.into_iter().flatten().map(|chess| Chess { winner: chess.winner as i32, fen: chess.to_fen(next).unwrap() }).collect(), next: next as i32, last_move: request.alg }),
-            color: if (game.black == uuid) {Color::Black as i32} else {Color::White as i32}
+            color: if (game.black == uuid) {Color::Black as i32} else {Color::White as i32},
+            request: Some(MidGameRequest {
+                draw: Color::None as i32,
+                takeback: Color::None as i32
+            })
         };
 
         recs.get(&game.white).unwrap().send(Ok(res.clone())).await.unwrap();
@@ -151,7 +156,8 @@ impl Game for GameService {
 
         let res: SubscribeBoardResponse = SubscribeBoardResponse {
             game: Some(TicTacToe {chesses:game.game.chesses.into_iter().flatten().map(|chess|Chess{winner:Color::None as i32,fen:chess.to_fen(game.game.next).unwrap()}).collect(),next:game.game.next as i32, last_move: "".to_owned()}),
-            color: if(asker == game.black) {Color::Black as i32} else {Color::White as i32}
+            color: if(asker == game.black) {Color::Black as i32} else {Color::White as i32},
+            request: None
         };
 
         tx.send(Ok(res)).await.unwrap();
@@ -159,6 +165,22 @@ impl Game for GameService {
         Ok(Response::new(ReceiverStream::new(rx)))
     }
 
+    async fn take_back(&self, request: Request<TakeBackRequest>) -> Result<Response<TakeBackResponse>, Status> {
+
+        let request = request.into_inner();
+
+        let uuid = Uuid::parse_str(&request.uuid).map_err(|_| Status::invalid_argument("Invalid UUID"))?;
+
+        if let Some(game_id) = self.game_ids.read().await.get(&uuid) {
+            if let Some(game) = self.games.read().await.get(game_id) {
+                
+            }
+        }
+
+        return Err(Status::permission_denied("User is not in a game"));
+
+        Ok(Response::new(TakeBackResponse{}))
+    }
 
 }
 
