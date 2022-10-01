@@ -1,13 +1,8 @@
 #![allow(unused)]
 
-use std::collections::HashMap;
-use std::net::SocketAddr;
-use std::sync::Arc;
-use std::time::Duration;
-use tokio::sync::RwLock;
-use tokio::sync::mpsc::{self, Sender};
-use tonic::codegen::http::{request, self};
-use tonic::{transport::Server, Request, Response, Status};
+use std::{collections::HashMap, net::SocketAddr, sync::Arc, time::Duration};
+use tokio::sync::{RwLock, mpsc::{self, Sender}};
+use tonic::{codegen::http::{request, self}, transport::Server, Request, Response, Status};
 use tokio_stream::wrappers::ReceiverStream;
 use helpers::{TicTacToe as HelperToe, TicError, ChessBoard, chesstactoe::{game_server::{Game, GameServer}, join_response::GameStatus}};
 use helpers::chesstactoe::{JoinRequest, JoinResponse, TicTacToe, MovePieceRequest, MovePieceResponse, Color, Chess, SubscribeBoardRequest, MoveResult, SubscribeBoardResponse, TakeBackRequest, TakeBackResponse, MidGameRequest};
@@ -111,7 +106,12 @@ impl Game for GameService {
 
             self.game_ids.write().await.insert(white.0, game_uuid);
 
-            white.1.send(Ok(JoinResponse { status: GameStatus::Ready as i32, uuid: white.0.to_string() })).await.unwrap();
+            println!("{:?}", white.1);
+
+            white.1.send(Ok(JoinResponse { status: GameStatus::Ready as i32, uuid: white.0.to_string() })).await.unwrap_or_else(|a| {
+                println!("{}", a);
+                ()
+            });
 
             let (mut tx, rx) = mpsc::channel(4);
 
