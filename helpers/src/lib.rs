@@ -311,7 +311,7 @@ impl ChessBoard {
 
     if(self.winner != Color::None) {
       return Err(Box::new(MoveError::GameOver))
-    } 
+    }
 
     if(move_string == "O-O-O") {
       if(!*self.castling.get(&(next, Castling::QUEENSIDE)).unwrap()) {
@@ -428,6 +428,10 @@ impl ChessBoard {
       return Ok(false)
     }
 
+    if(!self.validate_check(&starting_coords, &end_coords, &self.board, move_string, next, next)) {
+      return Ok(false)
+    }
+
 
     match piece.name {
         PieceName::ROOK => {
@@ -497,6 +501,285 @@ impl ChessBoard {
 
     Ok(false)
 
+  }
+
+  fn validate_check(&self, starting_coords: &(usize, usize), end_coords: &(usize, usize), board: &[[Option<Piece>; 8]; 8], alg: &str, color: Color, next: Color) -> bool {
+    let mut fake_board = self.clone();
+    fake_board.make_move(color, alg, next);
+    return !fake_board.is_checked(&fake_board.board, &color);
+  }
+
+  fn is_checked(&self, board: &[[Option<Piece>;8 ]; 8], color: &Color) -> bool {
+    let king_position = board.into_iter().position(|col| col.into_iter().any(|p| p.is_some() && p.unwrap().color == *color && p.unwrap().name == PieceName::KING)).unwrap();
+
+    let king_position = (king_position, board[king_position].into_iter().position(|p| p.is_some() && p.unwrap().color == *color && p.unwrap().name == PieceName::KING).unwrap());
+
+    fn check_the_diagonals(board: &[[Option<Piece>; 8]; 8], color: &Color, king_position: (usize, usize)) -> bool {
+      let mut piece: Option<Piece> = None;
+      let mut pos = king_position;
+
+      loop {
+        match piece {
+          Some(other_piece) => {
+            if(other_piece.color != *color) {
+              if(other_piece.name == PieceName::BISHOP || other_piece.name == PieceName::QUEEN) {
+                return false;
+              }
+              else if(king_position.0 != 0 && king_position.1 != 0 && pos == (king_position.0-1, king_position.1-1) && other_piece.name == PieceName::PAWN && *color == Color::Black) {
+                return false;
+              }
+            }
+
+            break;
+          },
+          None => {
+            if(pos.0 == 0 || pos.1 == 0) {
+              break;
+            }
+            pos = (pos.0-1, pos.1-1);
+            piece = board[pos.0][pos.1];
+          }
+        }
+      }
+
+      let mut piece: Option<Piece> = None;
+      let mut pos = king_position;
+
+      loop {
+        match piece {
+          Some(other_piece) => {
+            if(other_piece.color != *color) {
+              if(other_piece.name == PieceName::BISHOP || other_piece.name == PieceName::QUEEN) {
+                return false;
+              }
+              else if(king_position.0 != 0 && pos == (king_position.0-1, king_position.1+1) && other_piece.name == PieceName::PAWN && *color == Color::Black) {
+                return false;
+              }
+            }
+
+            break;
+          },
+          None => {
+            if(pos.0 == 0 || pos.1 == 7) {
+              break;
+            }
+            pos = (pos.0-1, pos.1+1);
+            piece = board[pos.0][pos.1];
+          }
+        }
+      }
+
+      let mut piece: Option<Piece> = None;
+      let mut pos = king_position;
+
+      loop {
+        match piece {
+          Some(other_piece) => {
+            if(other_piece.color != *color) {
+              if(other_piece.name == PieceName::BISHOP || other_piece.name == PieceName::QUEEN) {
+                return false;
+              }
+              else if(king_position.1 != 0 && pos == (king_position.0+1, king_position.1-1) && other_piece.name == PieceName::PAWN && *color == Color::White) {
+                return false;
+              }
+            }
+
+            break;
+          },
+          None => {
+            if(pos.0 == 7 || pos.1 == 0) {
+              break;
+            }
+            pos = (pos.0+1, pos.1-1);
+            piece = board[pos.0][pos.1];
+          }
+        }
+      }
+
+      let mut piece: Option<Piece> = None;
+      let mut pos = king_position;
+
+      loop {
+        match piece {
+          Some(other_piece) => {
+            if(other_piece.color != *color) {
+              if(other_piece.name == PieceName::BISHOP || other_piece.name == PieceName::QUEEN) {
+                return false;
+              }
+              else if(pos == (king_position.0+1, king_position.1+1) && other_piece.name == PieceName::PAWN && *color == Color::White) {
+                return false;
+              }
+            }
+
+            break;
+          },
+          None => {
+            if(pos.0 == 7 || pos.1 == 7) {
+              break;
+            }
+            pos = (pos.0+1, pos.1+1);
+            piece = board[pos.0][pos.1];
+          }
+        }
+      }
+
+      return true;
+    }
+    
+    fn check_the_lateral(board: &[[Option<Piece>; 8]; 8], color: &Color, king_position: (usize, usize)) -> bool {
+      let mut piece: Option<Piece> = None;
+      let mut pos = king_position;
+
+      loop {
+        match piece {
+            Some(other_piece) => {
+              if(other_piece.color != *color) {
+                if(other_piece.name == PieceName::ROOK || other_piece.name == PieceName::QUEEN) {
+                  return false;
+                }
+              }
+
+              break;
+            },
+            None => {
+              if(pos.0 == 7) {
+                break;
+              }
+              pos.0 = pos.0+1;
+              piece = board[pos.0][pos.1]
+            },
+        }
+      }
+
+      let mut piece: Option<Piece> = None;
+      let mut pos = king_position;
+
+      loop {
+        match piece {
+            Some(other_piece) => {
+              if(other_piece.color != *color) {
+                if(other_piece.name == PieceName::ROOK || other_piece.name == PieceName::QUEEN) {
+                  return false;
+                }
+              }
+
+              break;
+            },
+            None => {
+              if(pos.0 == 0) {
+                break;
+              }
+              pos.0 = pos.0-1;
+              piece = board[pos.0][pos.1]
+            },
+        }
+      }
+
+      let mut piece: Option<Piece> = None;
+      let mut pos = king_position;
+
+      loop {
+        match piece {
+            Some(other_piece) => {
+              if(other_piece.color != *color) {
+                if(other_piece.name == PieceName::ROOK || other_piece.name == PieceName::QUEEN) {
+                  return false;
+                }
+              }
+
+              break;
+            },
+            None => {
+              if(pos.1 == 0) {
+                break;
+              }
+              pos.1 = pos.1-1;
+              piece = board[pos.0][pos.1]
+            },
+        }
+      }
+
+      let mut piece: Option<Piece> = None;
+      let mut pos = king_position;
+
+      loop {
+        match piece {
+            Some(other_piece) => {
+              if(other_piece.color != *color) {
+                if(other_piece.name == PieceName::ROOK || other_piece.name == PieceName::QUEEN) {
+                  return false;
+                }
+              }
+
+              break;
+            },
+            None => {
+              if(pos.1 == 7) {
+                break;
+              }
+              pos.1 = pos.1+1;
+              piece = board[pos.0][pos.1]
+            },
+        }
+      }
+
+      return true;
+    }
+
+    fn check_the_knights(board: &[[Option<Piece>; 8]; 8], color: &Color, king_position: (usize, usize)) -> bool {
+
+      if(king_position.0 < 6 && king_position.1 < 7) {
+        if(board[king_position.0+2][king_position.1+1].is_some() && board[king_position.0+2][king_position.1+1].unwrap().name == PieceName::KNIGHT && board[king_position.0+2][king_position.1+1].unwrap().color != *color) {
+          return true
+        }
+      }
+
+      if(king_position.0 < 6 && king_position.1 > 0) {
+        if(board[king_position.0+2][king_position.1-1].is_some() && board[king_position.0+2][king_position.1-1].unwrap().name == PieceName::KNIGHT && board[king_position.0+2][king_position.1-1].unwrap().color != *color) {
+          return false
+        }
+      }
+
+      if(king_position.0 > 1 && king_position.1 > 0) {
+        if(board[king_position.0-2][king_position.1-1].is_some() && board[king_position.0-2][king_position.1-1].unwrap().name == PieceName::KNIGHT && board[king_position.0-2][king_position.1-1].unwrap().color != *color) {
+          return false
+        }
+      }
+
+      if(king_position.0 > 1 && king_position.1 < 7) {
+        if(board[king_position.0-2][king_position.1+1].is_some() && board[king_position.0-2][king_position.1+1].unwrap().name == PieceName::KNIGHT && board[king_position.0-2][king_position.1+1].unwrap().color != *color) {
+          return false
+        }
+      }
+
+      if(king_position.0 < 7 && king_position.1 < 6) {
+        if(board[king_position.0+1][king_position.1+2].is_some() && board[king_position.0+1][king_position.1+2].unwrap().name == PieceName::KNIGHT && board[king_position.0+1][king_position.1+2].unwrap().color != *color) {
+          return false
+        }
+      }
+
+      if(king_position.0 < 7 && king_position.1 > 1) {
+        if(board[king_position.0+1][king_position.1-2].is_some() && board[king_position.0+1][king_position.1-2].unwrap().name == PieceName::KNIGHT && board[king_position.0+1][king_position.1-2].unwrap().color != *color) {
+          return false
+        }
+      }
+
+      if(king_position.0 > 0 && king_position.1 > 1) {
+        if(board[king_position.0-1][king_position.1-2].is_some() && board[king_position.0-1][king_position.1-2].unwrap().name == PieceName::KNIGHT && board[king_position.0-1][king_position.1-2].unwrap().color != *color) {
+          return false
+        }
+      }
+
+      if(king_position.0 > 0 && king_position.1 < 6) {
+        if(board[king_position.0-1][king_position.1+2].is_some() && board[king_position.0-1][king_position.1+2].unwrap().name == PieceName::KNIGHT && board[king_position.0-1][king_position.1+2].unwrap().color != *color) {
+          return false
+        }
+      }
+
+      return true
+    }
+ 
+    return !check_the_diagonals(board, color, king_position) || !check_the_lateral(board, color, king_position) || !check_the_knights(board, color, king_position);
   }
 
   fn validate_bishop(starting_coords: &(usize, usize), end_coords: &(usize, usize), board: &[[Option<Piece>; 8]; 8]) -> bool {
