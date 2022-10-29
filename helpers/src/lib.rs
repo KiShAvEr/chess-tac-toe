@@ -1,10 +1,21 @@
 #![allow(unused)]
 
 use std::{fmt::{Display, write}, collections::HashMap};
+use rand::seq::SliceRandom;
 
 use chesstactoe::*;
 pub mod chesstactoe {
   tonic::include_proto!("chesstactoe");
+}
+
+impl Display for Color {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+      match self {
+        Color::White => write!(f, "White"),
+        Color::Black => write!(f, "Black"),
+        Color::None => write!(f, "None"),
+    }
+  }
 }
 
 use regex::Regex;
@@ -149,7 +160,7 @@ impl Default for TicTacToe {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ChessBoard {
-  board: [[Option<Piece>; 8]; 8],
+  pub board: [[Option<Piece>; 8]; 8],
   castling: HashMap<(Color, Castling), bool>,
   en_passant: Option<(usize, usize)>,
   halfmove: usize,
@@ -159,11 +170,24 @@ pub struct ChessBoard {
 
 impl Default for ChessBoard {
   fn default() -> Self {
-      return Self::parse_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap();
+    return Self::parse_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap();
   }
 }
 
 impl ChessBoard {
+
+  pub fn random() -> Self {
+    let mut board = "".to_owned();
+    let samples = vec!["r", "n", "b", "q", "k", "1", "p", "P", "R", "N", "B", "Q", "K"];
+    for i in (0..8) {
+      let rand = samples.choose_multiple(&mut rand::thread_rng(), 8).map(|el| el.to_owned().to_string()).reduce(|this, next| {
+        this + &next
+      }).unwrap();
+      board += &(rand + "/")
+    }
+    board = board[..board.len()-1].to_string();
+    return Self::parse_fen(&format!("{} w KQkq - 0 1", board)).unwrap()
+  }
 
   pub fn parse_fen(fen: &str) -> Result<ChessBoard, FenError> {
     let mut parts = fen.split(" ");
@@ -329,7 +353,17 @@ impl ChessBoard {
                   [ChessBoard::get_square("b8")?, ChessBoard::get_square("c8")?, ChessBoard::get_square("d8")?].into_iter()
                     .all(|square| self.board[square.0][square.1] == None)
                 ) {
-                  return Ok(true)
+                  if(!self.is_checked(&Color::Black) && [ChessBoard::get_square("c8")?, ChessBoard::get_square("d8")?].into_iter().all(|square| {
+                    let mut fake_board = self.clone();
+                    let coords = ChessBoard::get_square("e8").unwrap();
+                    fake_board.board[coords.0][coords.1] = None;
+                    
+                    fake_board.board[square.0][square.1] = Some(Piece { color: Color::Black, name: PieceName::KING });
+
+                    !fake_board.is_checked(&Color::Black)
+                  })) {
+                    return Ok(true)
+                  }
                 }
                 return Ok(false)
             }
@@ -344,7 +378,17 @@ impl ChessBoard {
                   [ChessBoard::get_square("b1")?, ChessBoard::get_square("c1")?, ChessBoard::get_square("d1")?].into_iter()
                     .all(|square| self.board[square.0][square.1] == None)
                 ) {
-                  return Ok(true)
+                  if(!self.is_checked(&Color::White) && [ChessBoard::get_square("c1")?, ChessBoard::get_square("d1")?].into_iter().all(|square| {
+                    let mut fake_board = self.clone();
+                    let coords = ChessBoard::get_square("e8").unwrap();
+                    fake_board.board[coords.0][coords.1] = None;
+                    
+                    fake_board.board[square.0][square.1] = Some(Piece { color: Color::White, name: PieceName::KING });
+
+                    !fake_board.is_checked(&Color::White)
+                  })) {
+                    return Ok(true)
+                  }
                 }
                 return Ok(false)
             }
@@ -365,14 +409,23 @@ impl ChessBoard {
             let king_square = ChessBoard::get_square("e8")?;
             if(self.board[rook_square.0][rook_square.1] == Some(Piece{ color: Color::Black, name: PieceName::ROOK}) &&
                 self.board[king_square.0][king_square.1] == Some(Piece{ color: Color::Black, name: PieceName::KING})
+            ) {
+              if(
+                [ChessBoard::get_square("f8")?, ChessBoard::get_square("g8")?].into_iter()
+                  .all(|square| {
+                    let mut fake_board = self.clone();
+                    let coords = ChessBoard::get_square("e8").unwrap();
+                    fake_board.board[coords.0][coords.1] = None;
+                    
+                    fake_board.board[square.0][square.1] = Some(Piece { color: Color::Black, name: PieceName::KING });
+                    
+                    self.board[square.0][square.1] == None &&
+                      !fake_board.is_checked(&Color::Black)
+                  })
               ) {
-                if(
-                  [ChessBoard::get_square("f8")?, ChessBoard::get_square("g8")?].into_iter()
-                    .all(|square| self.board[square.0][square.1] == None)
-                ) {
                   return Ok(true)
                 }
-                return Ok(false)
+              return Ok(false)
             }
           },
           Color::White => {
@@ -383,7 +436,16 @@ impl ChessBoard {
               ) {
                 if(
                   [ChessBoard::get_square("f1")?, ChessBoard::get_square("g1")?].into_iter()
-                    .all(|square| self.board[square.0][square.1] == None)
+                  .all(|square| {
+                    let mut fake_board = self.clone();
+                    let coords = ChessBoard::get_square("e8").unwrap();
+                    fake_board.board[coords.0][coords.1] = None;
+                    
+                    fake_board.board[square.0][square.1] = Some(Piece { color: Color::Black, name: PieceName::KING });
+                    
+                    self.board[square.0][square.1] == None &&
+                      !fake_board.is_checked(&Color::Black)
+                  })                
                 ) {
                   return Ok(true)
                 }
@@ -506,13 +568,13 @@ impl ChessBoard {
   fn validate_check(&self, starting_coords: &(usize, usize), end_coords: &(usize, usize), board: &[[Option<Piece>; 8]; 8], alg: &str, color: Color, next: Color) -> bool {
     let mut fake_board = self.clone();
     fake_board.make_move(color, alg, next);
-    return !fake_board.is_checked(&fake_board.board, &color);
+    return !fake_board.is_checked(&color);
   }
 
-  fn is_checked(&self, board: &[[Option<Piece>;8 ]; 8], color: &Color) -> bool {
-    let king_position = board.into_iter().position(|col| col.into_iter().any(|p| p.is_some() && p.unwrap().color == *color && p.unwrap().name == PieceName::KING)).unwrap();
+  fn is_checked(&self, color: &Color) -> bool {
+    let king_position = self.board.into_iter().position(|col| col.into_iter().any(|p| p.is_some() && p.unwrap().color == *color && p.unwrap().name == PieceName::KING)).unwrap();
 
-    let king_position = (king_position, board[king_position].into_iter().position(|p| p.is_some() && p.unwrap().color == *color && p.unwrap().name == PieceName::KING).unwrap());
+    let king_position = (king_position, self.board[king_position].into_iter().position(|p| p.is_some() && p.unwrap().color == *color && p.unwrap().name == PieceName::KING).unwrap());
 
     fn check_the_diagonals(board: &[[Option<Piece>; 8]; 8], color: &Color, king_position: (usize, usize)) -> bool {
       let mut piece: Option<Piece> = None;
@@ -779,7 +841,7 @@ impl ChessBoard {
       return true
     }
  
-    return !check_the_diagonals(board, color, king_position) || !check_the_lateral(board, color, king_position) || !check_the_knights(board, color, king_position);
+    return !check_the_diagonals(&self.board, color, king_position) || !check_the_lateral(&self.board, color, king_position) || !check_the_knights(&self.board, color, king_position);
   }
 
   fn validate_bishop(starting_coords: &(usize, usize), end_coords: &(usize, usize), board: &[[Option<Piece>; 8]; 8]) -> bool {
@@ -1036,7 +1098,7 @@ enum Castling {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum PieceName {
+pub enum PieceName {
   ROOK,
   KNIGHT,
   BISHOP,
@@ -1045,8 +1107,21 @@ enum PieceName {
   PAWN
 }
 
+impl Display for PieceName {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+      match self {
+        PieceName::ROOK => write!(f, "Rook"),
+        PieceName::KNIGHT => write!(f, "Knight"),
+        PieceName::BISHOP => write!(f, "Bishop"),
+        PieceName::QUEEN => write!(f, "Queen"),
+        PieceName::KING => write!(f, "King"),
+        PieceName::PAWN => write!(f, "Pawn"),
+    }
+  }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Piece {
-  color: Color,
-  name: PieceName
+  pub color: Color,
+  pub name: PieceName
 }

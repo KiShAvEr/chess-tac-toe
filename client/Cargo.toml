@@ -4,20 +4,22 @@ version = "0.1.0"
 edition = "2021"
 
 [lib]
-name = "grpc_client"
-path = "src/lib.rs"
+name = "utils"
+path = "src/utils.rs"
 
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-dioxus = {version = "0.2.4", features = ["desktop"]}
+dioxus = {version = "0.2.4", features = ["desktop", "router"]}
 prost = "0.11.0"
 regex = "1.6.0"
 tonic = "0.8.2"
 uuid = {version = "1.1.2"}
 helpers = {path = "../helpers"}
 tokio = {version = "1.21.0", features = ["rt-multi-thread", "macros"]}
+base64 = "0.13.1"
+include_dir = "0.7.3"
 
 [build-dependencies]
 tonic-build = "0.8.0"

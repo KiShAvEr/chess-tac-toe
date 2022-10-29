@@ -1,7 +1,7 @@
 use dioxus::prelude::*;
-use grpc_client::{connect, get_client, get_uuid, set_uuid};
-use pages::MainScreen;
-use components::{BigBoard, GameButton, InfoPanel, Piece, SmallBoard, Timer};
+use utils::{connect, get_client, get_uuid, set_uuid};
+use pages::MainScreen::MainScreen;
+use components::{};
 use helpers::chesstactoe::{JoinRequest};
 use tonic::{Request};
 
@@ -45,7 +45,9 @@ fn app(cx: Scope) -> Element {
 
     cx.render(
         rsx!{
-            MainScreen::MainScreen {}
+            Router {
+                Route { to: "/", MainScreen {}}
+            }
         }
     )
 }

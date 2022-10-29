@@ -1,0 +1,21 @@
+.tic-container {
+  display: flex;
+  max-height: 100%;
+  max-width: 100%;
+  justify-content: start;
+  aspect-ratio: 1;
+  margin: 2.5%;
+}
+
+.tic-col {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.tic-cell {
+  border: 1px solid black;
+  height: auto;
+  width: auto;
+  aspect-ratio: 1 !important;
+}

@@ -1,4 +1,4 @@
-.container {
+.chess-container {
   display: flex;
   max-height: 100%;
   max-width: 100%;
@@ -7,35 +7,19 @@
   aspect-ratio: 1;
 }
 
-.col {
+.chess-col {
   display: flex;
   flex: 1;
-  aspect-ratio: 1/8 !important;
   flex-direction: row;
 }
 
-.cell {
+.chess-cell {
+  flex: 1;
   border: 1px solid black;
   height: auto;
   width: auto;
   aspect-ratio: 1 !important;
-  word-break: break-all;
-}
-
-* {
-  margin: 0px;
-}
-
-body {
-  height: 100%;
-  width: 100%;
-}
-
-html {
-  height: 100%;
-}
-
-img {
-  height: 10%;
-  width: 10%;
+  word-break: normal;
+  font-size: 0.1%;
+  overflow: hidden;
 }
