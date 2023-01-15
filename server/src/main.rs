@@ -1,10 +1,11 @@
 #![allow(unused)]
 
 use std::{collections::HashMap, net::SocketAddr, sync::Arc, time::Duration};
-use tokio::sync::{RwLock, mpsc::{self, Sender}};
+use dashmap::DashMap;
+use tokio::sync::{mpsc::{self, Sender}, Mutex};
 use tonic::{codegen::http::{request, self}, transport::Server, Request, Response, Status};
 use tokio_stream::wrappers::ReceiverStream;
-use helpers::{TicTacToe as HelperToe, TicError, ChessBoard, chesstactoe::{game_server::{Game, GameServer}, join_response::GameStatus}};
+use helpers::{TicTacToe as HelperToe, TicError, ChessBoard, chesstactoe::{game_server::{Game, GameServer}, join_response::GameStatus, chess::EndResult}};
 use helpers::chesstactoe::{JoinRequest, JoinResponse, TicTacToe, MovePieceRequest, MovePieceResponse, Color, Chess, SubscribeBoardRequest, MoveResult, SubscribeBoardResponse, TakeBackRequest, TakeBackResponse, MidGameRequest};
 use uuid::{Uuid, uuid};
 
@@ -20,10 +21,10 @@ struct Ongoing {
 
 #[derive(Debug, Default)]
 struct GameService {
-    q: Arc<RwLock<Vec<(Uuid, Sender<Result<JoinResponse, Status>>)>>>, 
-    receivers: Arc<RwLock<HashMap<Uuid, Sender<Result<SubscribeBoardResponse, Status>>>>>,
-    game_ids: Arc<RwLock<HashMap<Uuid, Uuid>>>,
-    games: Arc<RwLock<HashMap<Uuid, Ongoing>>>
+    q: Arc<Mutex<Vec<(Uuid, Sender<Result<JoinResponse, Status>>)>>>, 
+    receivers: Arc<DashMap<Uuid, Sender<Result<SubscribeBoardResponse, Status>>>>,
+    game_ids: Arc<DashMap<Uuid, Uuid>>,
+    games: Arc<DashMap<Uuid, Ongoing>>
 }
 
 #[tonic::async_trait]
@@ -37,48 +38,46 @@ impl Game for GameService {
 
         let uuid = Uuid::parse_str(&request.uuid).map_err(|_| Status::invalid_argument("Invalid UUID"))?;
 
-        if(self.game_ids.read().await.get(&uuid)).is_none() {
+        if(!self.game_ids.contains_key(&uuid)) {
             return Err(Status::permission_denied("User needs to join a game first"))
         }
 
-        let uuids = self.game_ids.read().await;
+        let game = self.game_ids.get(&uuid).unwrap();
 
-        let game_uuid = uuids.get(&uuid).unwrap();
+        let game_uuid = game.value();
 
-        let mut games = self.games.write().await;
+        let mut game = self.games.get_mut(game_uuid).unwrap();
 
-        let mut game = games.get(game_uuid).unwrap().clone();
+        let game = game.value_mut();
 
         let white = game.white;
         let black = game.black;
 
         let color = if(uuid == white) {Color::White} else if(uuid == black) {Color::Black} else {return Err(Status::internal("Something went wrong"))};
 
-        let tic = make_move(game.game.to_fen().unwrap(), 
-            ((request.board/3).try_into().unwrap(), (request.board%3).try_into().unwrap()), 
-            &request.alg, 
-            color).map_err(|e| Status::internal(e.to_string()))?;
+        let requested_board: (usize, usize) = ((request.board/3).try_into().unwrap(), (request.board%3).try_into().unwrap());
+
+        if color != game.game.next {
+            return Err(Status::permission_denied("You're not next"))
+        }
+
+        game.game.make_move(requested_board, &request.alg).map_err(|e| Status::internal(e.to_string()))?;
         
-        game.game = tic;
-
-        games.insert(*game_uuid, game.clone());
-
-        let recs = self.receivers.read().await;
-
-        let chesses = game.game.chesses;
+        let chesses = &game.game.chesses;
         let next = game.game.next;
 
-        let res = SubscribeBoardResponse {
-            game: Some(TicTacToe { chesses: chesses.into_iter().flatten().map(|chess| Chess { winner: chess.winner as i32, fen: chess.to_fen(next).unwrap() }).collect(), next: next as i32, last_move: request.alg }),
-            color: if (game.black == uuid) {Color::Black as i32} else {Color::White as i32},
+        let mut res = SubscribeBoardResponse {
+            game: Some(TicTacToe { chesses: chesses.iter().flatten().map(|chess| Chess { end_result: Some(chess.end.clone()), fen: chess.to_fen(next).unwrap() }).collect(), next: next as i32, last_move: request.alg }),
+            color: Color::White.into(),
             request: Some(MidGameRequest {
-                draw: Color::None as i32,
-                takeback: Color::None as i32
+                draw: None,
+                takeback: None
             })
         };
 
-        recs.get(&game.white).unwrap().send(Ok(res.clone())).await.unwrap();
-        recs.get(&game.black).unwrap().send(Ok(res.clone())).await.unwrap();
+        self.receivers.get(&game.white).unwrap().send(Ok(res.clone())).await.unwrap();
+        res.color = Color::Black.into();
+        self.receivers.get(&game.black).unwrap().send(Ok(res)).await.unwrap();
         
         Ok(Response::new(MovePieceResponse { successful: MoveResult::ResultSuccessful as i32 }))
     }
@@ -89,9 +88,9 @@ impl Game for GameService {
 
         let uuid = Uuid::new_v4();
 
-        if(!self.q.read().await.is_empty()) {
-            let white = self.q.read().await.first().unwrap().clone();
-            self.q.write().await.remove(0);
+        if(!self.q.lock().await.is_empty()) {
+            let mut q = self.q.lock().await;
+            let white = q.remove(0);;
             let game: Ongoing = Ongoing {
                 white: white.0,
                 black: uuid,
@@ -100,11 +99,11 @@ impl Game for GameService {
 
             let game_uuid = Uuid::new_v4();
 
-            self.games.write().await.insert(game_uuid, game);
+            self.games.insert(game_uuid, game);
 
-            self.game_ids.write().await.insert(uuid, game_uuid);
+            self.game_ids.insert(uuid, game_uuid);
 
-            self.game_ids.write().await.insert(white.0, game_uuid);
+            self.game_ids.insert(white.0, game_uuid);
 
             println!("{:?}", white.1);
 
@@ -122,11 +121,11 @@ impl Game for GameService {
             white.1.closed();
             
             return Ok(Response::new(ReceiverStream::new(rx)))
-        } 
+        }
 
         let (mut tx, rx) = mpsc::channel(4);
 
-        self.q.write().await.push((uuid, tx.clone()));
+        self.q.lock().await.push((uuid, tx.clone()));
 
         tx.send(Ok(JoinResponse { status: GameStatus::NotReady as i32, uuid: uuid.to_string()})).await.unwrap();
 
@@ -144,18 +143,20 @@ impl Game for GameService {
 
         let asker = Uuid::parse_str(&request.uuid).map_err(|_| Status::invalid_argument("Invalid UUID"))?;
 
-        if(self.game_ids.read().await.get(&asker).is_none()) {
+        if(!self.game_ids.contains_key(&asker)) {
             return Err(Status::permission_denied("User needs to join a game first"))
         }
 
         let (mut tx, rx) = mpsc::channel(4);
 
-        self.receivers.write().await.insert(asker, tx.clone());
+        self.receivers.insert(asker, tx.clone());
 
-        let game = self.games.read().await.get(self.game_ids.read().await.get(&asker).unwrap()).unwrap().clone();
+        let game = self.games.get(&self.game_ids.get(&asker).unwrap().value()).unwrap();
+
+        let game = game.value();
 
         let res: SubscribeBoardResponse = SubscribeBoardResponse {
-            game: Some(TicTacToe {chesses:game.game.chesses.into_iter().flatten().map(|chess|Chess{winner:Color::None as i32,fen:chess.to_fen(game.game.next).unwrap()}).collect(),next:game.game.next as i32, last_move: "".to_owned()}),
+            game: Some(TicTacToe {chesses:game.game.chesses.iter().flatten().map(|chess|Chess{end_result: Some(EndResult::None(true)), fen:chess.to_fen(game.game.next).unwrap()}).collect(), next:game.game.next as i32, last_move: "".to_owned()}),
             color: if(asker == game.black) {Color::Black as i32} else {Color::White as i32},
             request: None
         };
@@ -171,8 +172,8 @@ impl Game for GameService {
 
         let uuid = Uuid::parse_str(&request.uuid).map_err(|_| Status::invalid_argument("Invalid UUID"))?;
 
-        if let Some(game_id) = self.game_ids.read().await.get(&uuid) {
-            if let Some(game) = self.games.read().await.get(game_id) {
+        if let Some(game_id) = self.game_ids.get(&uuid) {
+            if let Some(game) = self.games.get(&game_id.value()) {
                 
             }
         }
@@ -188,36 +189,13 @@ impl Game for GameService {
 async fn main() -> Result<(), Box<dyn std::error::Error>>  {
     let fasz = GameService::default();
 
+    println!("Server listening on 0.0.0.0:50051");
+
     Server::builder()
         .add_service(GameServer::new(fasz))
-        .serve("[::1]:50051".parse()?)
+        .serve("0.0.0.0:50051".parse()?)
         .await?;
-
-    println!("server running on port {}", 50051);
         
     Ok(())
 
 }
-
-
-
-pub fn make_move(tic: String, board: (usize, usize), alg: &str, mover: Color) -> Result<helpers::TicTacToe, Box<dyn std::error::Error>> {
-
-    let mut tic = HelperToe::from_fen(&tic)?;
-
-    if(board.0 > 2 || board.1 > 2) {
-      return Err(Box::new(TicError::InvalidCoords));
-    }
-
-    if(tic.next != mover) {
-      return Err(Box::new(TicError::WrongColor))
-    }
-
-    let chessboard = &mut tic.chesses[board.0][board.1];
-
-    chessboard.make_move(mover, alg, tic.next)?;
-
-    tic.next = if tic.next == Color::White {Color::Black} else {Color::White};
-
-    return Ok(tic);
-  }

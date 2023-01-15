@@ -19,3 +19,11 @@
   width: auto;
   aspect-ratio: 1 !important;
 }
+
+.tic-cell.dark {
+  background-color: darkgrey !important;
+}
+
+.tic-cell.light {
+  background-color: white !important;
+}

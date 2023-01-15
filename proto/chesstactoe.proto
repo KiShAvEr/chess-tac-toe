@@ -38,9 +38,13 @@ message SubscribeBoardResponse {
   MidGameRequest request = 3;
 }
 
+message Request {
+  Color requestee = 1;
+}
+
 message MidGameRequest {
-  Color takeback = 1;
-  Color draw = 2;
+  Request takeback = 1;
+  Request draw = 2;
 }
 
 message MovePieceRequest {
@@ -56,8 +60,12 @@ enum MoveResult {
 }
 
 message Chess {
-  Color winner = 1;
-  string FEN = 2;
+  oneof endResult {
+    Color color = 1;
+    bool draw = 2;
+    bool none = 3;
+  };
+  string FEN = 4;
 }
 
 message TicTacToe {
@@ -69,7 +77,6 @@ message TicTacToe {
 enum Color {
   WHITE = 0;
   BLACK = 1;
-  None = 2;
 }
 
 message MovePieceResponse {

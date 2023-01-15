@@ -3,9 +3,17 @@
 use std::{fmt::{Display, write}, collections::HashMap};
 use rand::seq::SliceRandom;
 
-use chesstactoe::*;
+use chesstactoe::{*, chess::EndResult};
+
 pub mod chesstactoe {
   tonic::include_proto!("chesstactoe");
+}
+
+macro_rules! regex {
+  ($re:literal $(,)?) => {{
+      static RE: once_cell::sync::OnceCell<regex::Regex> = once_cell::sync::OnceCell::new();
+      RE.get_or_init(|| regex::Regex::new($re).unwrap())
+  }};
 }
 
 impl Display for Color {
@@ -13,7 +21,6 @@ impl Display for Color {
       match self {
         Color::White => write!(f, "White"),
         Color::Black => write!(f, "Black"),
-        Color::None => write!(f, "None"),
     }
   }
 }
@@ -84,13 +91,21 @@ impl Display for TicError {
 impl std::error::Error for TicError {}
 
 impl TicTacToe {
-  pub fn validate_move(&self, board: (usize, usize), alg: &str) -> Result<bool, Box<dyn std::error::Error>>{
+  pub fn validate_move(&self, board: (usize, usize), alg: &str) -> Result<bool, Box<dyn std::error::Error>> {
+    Ok(self.get_board(board)?.validate_move(alg, self.next)?)
+  }
 
-    if(board.0 > 2 || board.1 > 2) {
-      return Err(Box::new(TicError::InvalidCoords));
+  pub fn make_move(&mut self, board: (usize, usize), alg: &str) -> Result<(), Box<dyn std::error::Error>> {
+
+    if !self.validate_move(board, alg)? {
+      return Err(Box::new(MoveError::InvalidMove))
     }
 
-    Ok(self.chesses[board.0][board.1].validate_move(alg, self.next)?)
+    self.chesses[board.0][board.1].make_move(alg, self.next)?;
+
+    self.next = if self.next == Color::White {Color::Black} else {Color::White};
+
+    Ok(())
   }
 
   pub fn to_fen(&self) -> Result<String, Box<dyn std::error::Error>> {
@@ -146,15 +161,37 @@ impl TicTacToe {
     Ok(TicTacToe {chesses, next})
   }
 
+  pub fn get_board(&self, board: (usize, usize)) -> Result<&ChessBoard, TicError> {
+    if(board.0 > 2 || board.1 > 2) {
+      return Err(TicError::InvalidCoords);
+    }
+  
+    Ok(&self.chesses[board.0][board.1])
+  }
+
 }
 
 impl Default for TicTacToe {
   fn default() -> Self {
-      TicTacToe { chesses: [
-        [ChessBoard::default(), ChessBoard::default(), ChessBoard::default()], 
-        [ChessBoard::default(), ChessBoard::default(), ChessBoard::default()],
-        [ChessBoard::default(), ChessBoard::default(), ChessBoard::default()]
-      ], next: Color::White }
+    TicTacToe { chesses: [
+      [ChessBoard::default(), ChessBoard::default(), ChessBoard::default()], 
+      [ChessBoard::default(), ChessBoard::default(), ChessBoard::default()],
+      [ChessBoard::default(), ChessBoard::default(), ChessBoard::default()]
+    ], next: Color::White }
+  }
+}
+
+impl From<chesstactoe::TicTacToe> for TicTacToe {
+  fn from(value: chesstactoe::TicTacToe) -> TicTacToe {
+    let mut chesses = TicTacToe::default().chesses;
+
+    for i in 0..3 {
+      for j in 0..3 {
+        chesses[i][j] = ChessBoard::parse_fen(&value.chesses[i*3+j].fen).unwrap()
+      }
+    }
+
+    TicTacToe { chesses: chesses, next: value.next() }
   }
 }
 
@@ -165,8 +202,11 @@ pub struct ChessBoard {
   en_passant: Option<(usize, usize)>,
   halfmove: usize,
   fullmove: usize, 
-  pub winner: Color
+  pub end: EndResult,
+  past: Vec<String>
 }
+
+impl Eq for EndResult {}
 
 impl Default for ChessBoard {
   fn default() -> Self {
@@ -271,25 +311,25 @@ impl ChessBoard {
   
     board.reverse();
     
-    let winner = if(!board.into_iter().any(|a| a.contains(&Some(Piece {name: PieceName::KING, color: Color::Black})))) {
-      Color::White
+    let end = if(!board.into_iter().any(|a| a.contains(&Some(Piece {name: PieceName::KING, color: Color::Black})))) {
+      EndResult::Color(Color::White as i32)
     } else if (!board.into_iter().any(|a| a.contains(&Some(Piece {name: PieceName::KING, color: Color::White})))) {
-      Color::Black
+      EndResult::Color(Color::Black as i32)
     }
     else {
-      Color::None
+      EndResult::None(true)
     };
   
-    Ok(ChessBoard {board, winner, castling, 
+    Ok(ChessBoard {board, end, castling, 
       en_passant: if(en_passant == "-") {None} else {Some(ChessBoard::get_square(en_passant)?)}, 
       halfmove: halfmove.parse::<usize>().map_err(|_| FenError::InvalidFormat)?, 
-      fullmove: fullmove.parse::<usize>().map_err(|_| FenError::InvalidFormat)?}
+      fullmove: fullmove.parse::<usize>().map_err(|_| FenError::InvalidFormat)?, past: vec![fen.to_owned()]}
     )
   
   }
 
-  fn get_square(str: &str) -> Result<(usize, usize), FenError> {
-    let regex = Regex::new("[a-h]{1}[1-8]{1}").unwrap();
+  pub fn get_square(str: &str) -> Result<(usize, usize), FenError> {
+    let regex = regex!("[a-h]{1}[1-8]{1}");
     if(!regex.is_match(str)) {
       return Err(FenError::InvalidFormat)
     }
@@ -311,7 +351,7 @@ impl ChessBoard {
     Ok((row as usize, column as usize))
   }
 
-  fn get_tile(square: (usize, usize)) -> Result<String, FenError> {
+  pub fn get_tile(square: (usize, usize)) -> Result<String, FenError> {
     let chars = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 
     if(square.0 > 7 || square.1 > 7) {
@@ -322,156 +362,84 @@ impl ChessBoard {
 
   }
 
+  fn get_data_from_move(move_string: &str) -> Result<((usize, usize), (usize, usize), PieceName), FenError> {
+    let name = match &move_string[0..1] {
+      "N" => PieceName::KNIGHT,
+      "R" => PieceName::ROOK,
+      "B" => PieceName::BISHOP,
+      "Q" => PieceName::QUEEN,
+      "K" => PieceName::KING,
+      _ => PieceName::PAWN
+    }; 
+  
+    let starting_sqare = &move_string[if name == PieceName::PAWN {0} else {1}..if name == PieceName::PAWN {2} else {3}];
+    let starting_coords = ChessBoard::get_square(starting_sqare)?;
+    
+    let end_square = &Regex::new("[a-h]{1}[1-8]{1}").unwrap().captures_iter(move_string).last().unwrap()[0];
+    let end_coords = ChessBoard::get_square(end_square)?;
+  
+    return Ok((starting_coords, end_coords, name))
+  
+  }
 
-  //TODO castling
+  //TODO test
   pub fn validate_move(&self, move_string: &str, next: Color) -> Result<bool, Box<dyn std::error::Error>> {
 
-    let regex = Regex::new(r"(O-O-O)|(O-O)|([R,N,B,K,Q]{0,1}([a-h]{1}[1-8]{1})x{0,1}([a-h]{1}[1-8]{1})\+{0,1})")
-                        .unwrap();
+    let regex = regex!(r"(O-O-O)|(O-O)|([R,N,B,K,Q]{0,1}([a-h]{1}[1-8]{1})x{0,1}([a-h]{1}[1-8]{1})\+{0,1})");
 
     if(!regex.is_match(move_string)) {
       return Err(Box::new(FenError::InvalidFormat))
     }
 
-    if(self.winner != Color::None) {
+    if(self.end != EndResult::None(true)) {
       return Err(Box::new(MoveError::GameOver))
     }
 
-    if(move_string == "O-O-O") {
-      if(!*self.castling.get(&(next, Castling::QUEENSIDE)).unwrap()) {
-        return Ok(false)
-      }
+    if(move_string == "O-O-O" || move_string == "O-O") {
+      let (rook_square, king_square, between_squares) = match (move_string, next) {
+        ("O-O-O", Color::Black) => {
+          (ChessBoard::get_square("a8")?, ChessBoard::get_square("e8")?, vec![ChessBoard::get_square("b8")?, ChessBoard::get_square("c8")?, ChessBoard::get_square("d8")?])
+        },
+        ("O-O-O", Color::White) => {
+          (ChessBoard::get_square("a1")?, ChessBoard::get_square("e1")?, vec![ChessBoard::get_square("b1")?, ChessBoard::get_square("c1")?, ChessBoard::get_square("d1")?])
+        },
+        ("O-O", Color::Black) => {
+          (ChessBoard::get_square("h8")?, ChessBoard::get_square("e8")?, vec![ChessBoard::get_square("f8")?, ChessBoard::get_square("g8")?])
+        },
+        ("O-O", Color::White) => {
+          (ChessBoard::get_square("h1")?, ChessBoard::get_square("e1")?, vec![ChessBoard::get_square("f1")?, ChessBoard::get_square("g1")?])
+        }
+        _ => {
+          return Err(Box::new(MoveError::InvalidMove))
+        }
+      };
 
-      match next {
-          Color::Black => {
-            let rook_square = ChessBoard::get_square("a8")?;
-            let king_square = ChessBoard::get_square("e8")?;
-            if(self.board[rook_square.0][rook_square.1] == Some(Piece{ color: Color::Black, name: PieceName::ROOK}) &&
-                self.board[king_square.0][king_square.1] == Some(Piece{ color: Color::Black, name: PieceName::KING})
-              ) {
-                if(
-                  [ChessBoard::get_square("b8")?, ChessBoard::get_square("c8")?, ChessBoard::get_square("d8")?].into_iter()
-                    .all(|square| self.board[square.0][square.1] == None)
-                ) {
-                  if(!self.is_checked(&Color::Black) && [ChessBoard::get_square("c8")?, ChessBoard::get_square("d8")?].into_iter().all(|square| {
-                    let mut fake_board = self.clone();
-                    let coords = ChessBoard::get_square("e8").unwrap();
-                    fake_board.board[coords.0][coords.1] = None;
-                    
-                    fake_board.board[square.0][square.1] = Some(Piece { color: Color::Black, name: PieceName::KING });
+      if(self.board[rook_square.0][rook_square.1] == Some(Piece{ color: next, name: PieceName::ROOK}) &&
+          self.board[king_square.0][king_square.1] == Some(Piece{ color: next, name: PieceName::KING})
+        ) {
+          if(
+            between_squares.iter()
+              .all(|square| self.board[square.0][square.1] == None)
+          ) {
+            if(!self.is_checked(&next) && between_squares.iter().all(|square| {
+              let mut fake_board = self.clone();
+              let coords = king_square;
+              fake_board.board[coords.0][coords.1] = None;
+              
+              fake_board.board[square.0][square.1] = Some(Piece { color: next, name: PieceName::KING });
 
-                    !fake_board.is_checked(&Color::Black)
-                  })) {
-                    return Ok(true)
-                  }
-                }
-                return Ok(false)
-            }
-          },
-          Color::White => {
-            let rook_square = ChessBoard::get_square("a1")?;
-            let king_square = ChessBoard::get_square("e1")?;
-            if(self.board[rook_square.0][rook_square.1] == Some(Piece{ color: Color::White, name: PieceName::ROOK}) &&
-                self.board[king_square.0][king_square.1] == Some(Piece{ color: Color::White, name: PieceName::KING})
-              ) {
-                if(
-                  [ChessBoard::get_square("b1")?, ChessBoard::get_square("c1")?, ChessBoard::get_square("d1")?].into_iter()
-                    .all(|square| self.board[square.0][square.1] == None)
-                ) {
-                  if(!self.is_checked(&Color::White) && [ChessBoard::get_square("c1")?, ChessBoard::get_square("d1")?].into_iter().all(|square| {
-                    let mut fake_board = self.clone();
-                    let coords = ChessBoard::get_square("e8").unwrap();
-                    fake_board.board[coords.0][coords.1] = None;
-                    
-                    fake_board.board[square.0][square.1] = Some(Piece { color: Color::White, name: PieceName::KING });
-
-                    !fake_board.is_checked(&Color::White)
-                  })) {
-                    return Ok(true)
-                  }
-                }
-                return Ok(false)
+              !fake_board.is_checked(&next)
+            })) {
+              return Ok(true)
             }
           }
-        Color::None => {},
-      }
-
-      return Ok(true);
-    }
-    else if move_string == "O-O" {
-      if(!*self.castling.get(&(next, Castling::KINGSIDE)).unwrap()) {
+        }
         return Ok(false)
-      }
-
-      match next {
-          Color::Black => {
-            let rook_square = ChessBoard::get_square("h8")?;
-            let king_square = ChessBoard::get_square("e8")?;
-            if(self.board[rook_square.0][rook_square.1] == Some(Piece{ color: Color::Black, name: PieceName::ROOK}) &&
-                self.board[king_square.0][king_square.1] == Some(Piece{ color: Color::Black, name: PieceName::KING})
-            ) {
-              if(
-                [ChessBoard::get_square("f8")?, ChessBoard::get_square("g8")?].into_iter()
-                  .all(|square| {
-                    let mut fake_board = self.clone();
-                    let coords = ChessBoard::get_square("e8").unwrap();
-                    fake_board.board[coords.0][coords.1] = None;
-                    
-                    fake_board.board[square.0][square.1] = Some(Piece { color: Color::Black, name: PieceName::KING });
-                    
-                    self.board[square.0][square.1] == None &&
-                      !fake_board.is_checked(&Color::Black)
-                  })
-              ) {
-                  return Ok(true)
-                }
-              return Ok(false)
-            }
-          },
-          Color::White => {
-            let rook_square = ChessBoard::get_square("h1")?;
-            let king_square = ChessBoard::get_square("e1")?;
-            if(self.board[rook_square.0][rook_square.1] == Some(Piece{ color: Color::White, name: PieceName::ROOK}) &&
-                self.board[king_square.0][king_square.1] == Some(Piece{ color: Color::White, name: PieceName::KING})
-              ) {
-                if(
-                  [ChessBoard::get_square("f1")?, ChessBoard::get_square("g1")?].into_iter()
-                  .all(|square| {
-                    let mut fake_board = self.clone();
-                    let coords = ChessBoard::get_square("e8").unwrap();
-                    fake_board.board[coords.0][coords.1] = None;
-                    
-                    fake_board.board[square.0][square.1] = Some(Piece { color: Color::Black, name: PieceName::KING });
-                    
-                    self.board[square.0][square.1] == None &&
-                      !fake_board.is_checked(&Color::Black)
-                  })                
-                ) {
-                  return Ok(true)
-                }
-                return Ok(false)
-            }
-          }
-        Color::None => todo!(),
-      }
-
-      return Ok(true);
     }
 
-    let piece = match &move_string[0..1] {
-      "N" => Piece {color: next, name: PieceName::KNIGHT},
-      "R" => Piece {color: next, name: PieceName::ROOK},
-      "B" => Piece {color: next, name: PieceName::BISHOP},
-      "Q" => Piece {color: next, name: PieceName::QUEEN},
-      "K" => Piece {color: next, name: PieceName::KING},
-      _ => Piece {color: next, name: PieceName::PAWN}
-    };
+    let (starting_coords, end_coords, piece_name) = ChessBoard::get_data_from_move(move_string)?;
 
-    let starting_sqare = &move_string[if piece.name == PieceName::PAWN {0} else {1}..if piece.name == PieceName::PAWN {2} else {3}];
-    let starting_coords = Self::get_square(starting_sqare)?;
-    
-    let end_square = &Regex::new("[a-h]{1}[1-8]{1}").unwrap().captures_iter(move_string).last().unwrap()[0];
-    let end_coords = Self::get_square(end_square)?;
+    let piece = Piece { color: next, name: piece_name };
 
     if(!move_string.contains("x")) {
       if(self.board[end_coords.0][end_coords.1] != None) {
@@ -489,11 +457,6 @@ impl ChessBoard {
     if(self.board[starting_coords.0][starting_coords.1] == None || self.board[starting_coords.0][starting_coords.1].unwrap() != piece) {
       return Ok(false)
     }
-
-    if(!self.validate_check(&starting_coords, &end_coords, &self.board, move_string, next, next)) {
-      return Ok(false)
-    }
-
 
     match piece.name {
         PieceName::ROOK => {
@@ -518,46 +481,33 @@ impl ChessBoard {
           return Ok(false)
         },
         PieceName::PAWN => {
-          match move_string.contains("x") {
-              true => {
-                match next {
-                  Color::Black => {
-                    if(starting_coords.0 > end_coords.0 && starting_coords.0 - end_coords.0 == 1 && starting_coords.1.abs_diff(end_coords.1) == 1) {
-                      return Ok(self.board[end_coords.0][end_coords.1] != None || self.en_passant == Some(end_coords))
-                    }
-                    return Ok(false)
-                  }
-                  Color::White => {
-                    if(end_coords.0 > starting_coords.0 && end_coords.0 - starting_coords.0 == 1 && starting_coords.1.abs_diff(end_coords.1) == 1) {
-                      return Ok(self.board[end_coords.0][end_coords.1] != None || self.en_passant == Some(end_coords))
-                    }
-                    return Ok(false)
-                  }
-                    Color::None => todo!(),
-                }
-              },
-              false => {
-                match next {
-                  Color::Black => {
-                    let double = starting_coords.0 == 6 && end_coords.0 == 4;
-                    let single = starting_coords.0 - end_coords.0 == 1 && starting_coords.1 == end_coords.1;
-                    if(double || single) {
-                      return Ok(self.board[end_coords.0][end_coords.1] == None)
-                    }
-                    return Ok(false)
-                  }
-                  Color::White => {
-                    let double = starting_coords.0 == 1 && end_coords.0 == 3;
-                    let single = end_coords.0 - starting_coords.0 == 1 && starting_coords.1 == end_coords.1;
-                    if(double || single) {
-                      return Ok(self.board[end_coords.0][end_coords.1] == None)
-                    }
-                    return Ok(false)
-                  }
-                    Color::None => todo!(),
-                }
-              }
+          let double = match next {
+            Color::Black => starting_coords.0 == 6 && end_coords.0 == 4,
+            Color::White => starting_coords.0 == 1 && end_coords.0 == 3,
+          };
+          let single = match next {
+              Color::Black => starting_coords.0.saturating_sub(end_coords.0) == 1,
+              Color::White => end_coords.0.saturating_sub(starting_coords.0) == 1,
+          };
+          let en_passant = match next {
+              Color::Black => self.en_passant == Some(end_coords),
+              Color::White => self.en_passant == Some(end_coords),
+          };
+
+          if move_string.contains("x") {
+            let diagonal_move = match next {
+                Color::Black => starting_coords.0.saturating_sub(end_coords.0) == 1 && starting_coords.1.abs_diff(end_coords.1) == 1,
+                Color::White => end_coords.0.saturating_sub(starting_coords.0) == 1 && starting_coords.1.abs_diff(end_coords.1) == 1,
+            };
+        
+            return Ok(diagonal_move && (self.board[end_coords.0][end_coords.1] != None || en_passant))
           }
+          
+          if (double || single) && starting_coords.1 == end_coords.1 {
+              return Ok(self.board[end_coords.0][end_coords.1] == None || en_passant)
+          }
+          
+          return Err(Box::new(MoveError::InvalidMove))
         },
     }
 
@@ -565,10 +515,10 @@ impl ChessBoard {
 
   }
 
-  fn validate_check(&self, starting_coords: &(usize, usize), end_coords: &(usize, usize), board: &[[Option<Piece>; 8]; 8], alg: &str, color: Color, next: Color) -> bool {
+  fn validate_check(&self, starting_coords: &(usize, usize), end_coords: &(usize, usize), board: &[[Option<Piece>; 8]; 8], alg: &str, next: Color) -> bool {
     let mut fake_board = self.clone();
-    fake_board.make_move(color, alg, next);
-    return !fake_board.is_checked(&color);
+    fake_board.make_move(alg, next);
+    return !fake_board.is_checked(&next);
   }
 
   fn is_checked(&self, color: &Color) -> bool {
@@ -577,367 +527,154 @@ impl ChessBoard {
     let king_position = (king_position, self.board[king_position].into_iter().position(|p| p.is_some() && p.unwrap().color == *color && p.unwrap().name == PieceName::KING).unwrap());
 
     fn check_the_diagonals(board: &[[Option<Piece>; 8]; 8], color: &Color, king_position: (usize, usize)) -> bool {
-      let mut piece: Option<Piece> = None;
-      let mut pos = king_position;
-
-      loop {
-        match piece {
-          Some(other_piece) => {
-            if(other_piece.color != *color) {
-              if(other_piece.name == PieceName::BISHOP || other_piece.name == PieceName::QUEEN) {
+      let directions = [(1, 1), (-1, 1), (1, -1), (-1, -1)];
+      for &(dx, dy) in &directions {
+        let mut x = king_position.0 as i8 + dx;
+        let mut y = king_position.1 as i8 + dy;
+        while x >= 0 && x < 8 && y >= 0 && y < 8 {
+          let piece = board[x as usize][y as usize];
+          if let Some(other_piece) = piece {
+            if other_piece.color != *color {
+              if other_piece.name == PieceName::BISHOP || other_piece.name == PieceName::QUEEN {
                 return false;
-              }
-              else if(king_position.0 != 0 && king_position.1 != 0 && pos == (king_position.0-1, king_position.1-1) && other_piece.name == PieceName::PAWN && *color == Color::Black) {
+              } else if dx == 1 && dy == 1 && other_piece.name == PieceName::PAWN && *color == Color::White {
+                return false;
+              } else if dx == -1 && dy == 1 && other_piece.name == PieceName::PAWN && *color == Color::Black {
                 return false;
               }
             }
-
             break;
-          },
-          None => {
-            if(pos.0 == 0 || pos.1 == 0) {
-              break;
-            }
-            pos = (pos.0-1, pos.1-1);
-            piece = board[pos.0][pos.1];
           }
+          x += dx;
+          y += dy;
         }
       }
-
-      let mut piece: Option<Piece> = None;
-      let mut pos = king_position;
-
-      loop {
-        match piece {
-          Some(other_piece) => {
-            if(other_piece.color != *color) {
-              if(other_piece.name == PieceName::BISHOP || other_piece.name == PieceName::QUEEN) {
-                return false;
-              }
-              else if(king_position.0 != 0 && pos == (king_position.0-1, king_position.1+1) && other_piece.name == PieceName::PAWN && *color == Color::Black) {
-                return false;
-              }
-            }
-
-            break;
-          },
-          None => {
-            if(pos.0 == 0 || pos.1 == 7) {
-              break;
-            }
-            pos = (pos.0-1, pos.1+1);
-            piece = board[pos.0][pos.1];
-          }
-        }
-      }
-
-      let mut piece: Option<Piece> = None;
-      let mut pos = king_position;
-
-      loop {
-        match piece {
-          Some(other_piece) => {
-            if(other_piece.color != *color) {
-              if(other_piece.name == PieceName::BISHOP || other_piece.name == PieceName::QUEEN) {
-                return false;
-              }
-              else if(king_position.1 != 0 && pos == (king_position.0+1, king_position.1-1) && other_piece.name == PieceName::PAWN && *color == Color::White) {
-                return false;
-              }
-            }
-
-            break;
-          },
-          None => {
-            if(pos.0 == 7 || pos.1 == 0) {
-              break;
-            }
-            pos = (pos.0+1, pos.1-1);
-            piece = board[pos.0][pos.1];
-          }
-        }
-      }
-
-      let mut piece: Option<Piece> = None;
-      let mut pos = king_position;
-
-      loop {
-        match piece {
-          Some(other_piece) => {
-            if(other_piece.color != *color) {
-              if(other_piece.name == PieceName::BISHOP || other_piece.name == PieceName::QUEEN) {
-                return false;
-              }
-              else if(pos == (king_position.0+1, king_position.1+1) && other_piece.name == PieceName::PAWN && *color == Color::White) {
-                return false;
-              }
-            }
-
-            break;
-          },
-          None => {
-            if(pos.0 == 7 || pos.1 == 7) {
-              break;
-            }
-            pos = (pos.0+1, pos.1+1);
-            piece = board[pos.0][pos.1];
-          }
-        }
-      }
-
-      return true;
+      true
     }
     
+    
     fn check_the_lateral(board: &[[Option<Piece>; 8]; 8], color: &Color, king_position: (usize, usize)) -> bool {
-      let mut piece: Option<Piece> = None;
-      let mut pos = king_position;
-
-      loop {
-        match piece {
+      let directions = [(1, 0), (-1, 0), (0, 1), (0, -1)];
+      for &(x, y) in directions.iter() {
+        let mut piece: Option<Piece> = None;
+        let mut pos = king_position;
+        loop {
+          match piece {
             Some(other_piece) => {
-              if(other_piece.color != *color) {
-                if(other_piece.name == PieceName::ROOK || other_piece.name == PieceName::QUEEN) {
+              if other_piece.color != *color {
+                if other_piece.name == PieceName::ROOK || other_piece.name == PieceName::QUEEN {
                   return false;
                 }
               }
-
               break;
-            },
+            }
             None => {
-              if(pos.0 == 7) {
-                break;
+              if pos.0 as i8 + x < 0 || pos.0 as i8 + x > 7 || pos.1 as i8 + y < 0 || pos.1 as i8 + y > 7 {
+                  break;
               }
-              pos.0 = pos.0+1;
+              pos.0 = (pos.0 as i8 + x) as usize;
+              pos.1 = (pos.1 as i8 + y) as usize;
               piece = board[pos.0][pos.1]
-            },
+            }
+          }
         }
       }
-
-      let mut piece: Option<Piece> = None;
-      let mut pos = king_position;
-
-      loop {
-        match piece {
-            Some(other_piece) => {
-              if(other_piece.color != *color) {
-                if(other_piece.name == PieceName::ROOK || other_piece.name == PieceName::QUEEN) {
-                  return false;
-                }
-              }
-
-              break;
-            },
-            None => {
-              if(pos.0 == 0) {
-                break;
-              }
-              pos.0 = pos.0-1;
-              piece = board[pos.0][pos.1]
-            },
-        }
-      }
-
-      let mut piece: Option<Piece> = None;
-      let mut pos = king_position;
-
-      loop {
-        match piece {
-            Some(other_piece) => {
-              if(other_piece.color != *color) {
-                if(other_piece.name == PieceName::ROOK || other_piece.name == PieceName::QUEEN) {
-                  return false;
-                }
-              }
-
-              break;
-            },
-            None => {
-              if(pos.1 == 0) {
-                break;
-              }
-              pos.1 = pos.1-1;
-              piece = board[pos.0][pos.1]
-            },
-        }
-      }
-
-      let mut piece: Option<Piece> = None;
-      let mut pos = king_position;
-
-      loop {
-        match piece {
-            Some(other_piece) => {
-              if(other_piece.color != *color) {
-                if(other_piece.name == PieceName::ROOK || other_piece.name == PieceName::QUEEN) {
-                  return false;
-                }
-              }
-
-              break;
-            },
-            None => {
-              if(pos.1 == 7) {
-                break;
-              }
-              pos.1 = pos.1+1;
-              piece = board[pos.0][pos.1]
-            },
-        }
-      }
-
-      return true;
+      true
     }
+  
 
     fn check_the_knights(board: &[[Option<Piece>; 8]; 8], color: &Color, king_position: (usize, usize)) -> bool {
+      // A list of tuples representing the positions that a knight
+      // could attack from its current position
+      let moves = [
+          (2, 1),
+          (2, -1),
+          (-2, 1),
+          (-2, -1),
+          (1, 2),
+          (1, -2),
+          (-1, 2),
+          (-1, -2),
+      ];
+  
+      // Iterate through the possible positions and check if any of them
+      // contain a knight of the opposite color
+      for (row_offset, col_offset) in moves.iter() {
+        let row = (king_position.0 as isize) + row_offset;
+        let col = (king_position.1 as isize) + col_offset;
 
-      if(king_position.0 < 6 && king_position.1 < 7) {
-        if(board[king_position.0+2][king_position.1+1].is_some() && board[king_position.0+2][king_position.1+1].unwrap().name == PieceName::KNIGHT && board[king_position.0+2][king_position.1+1].unwrap().color != *color) {
-          return true
+        // Make sure the position is within the bounds of the board
+        if row < 0 || row > 7 || col < 0 || col > 7 {
+            continue;
+        }
+
+        let piece = board[row as usize][col as usize];
+        if piece.is_some() && piece.unwrap().name == PieceName::KNIGHT && piece.unwrap().color != *color {
+            return false;
         }
       }
-
-      if(king_position.0 < 6 && king_position.1 > 0) {
-        if(board[king_position.0+2][king_position.1-1].is_some() && board[king_position.0+2][king_position.1-1].unwrap().name == PieceName::KNIGHT && board[king_position.0+2][king_position.1-1].unwrap().color != *color) {
-          return false
-        }
-      }
-
-      if(king_position.0 > 1 && king_position.1 > 0) {
-        if(board[king_position.0-2][king_position.1-1].is_some() && board[king_position.0-2][king_position.1-1].unwrap().name == PieceName::KNIGHT && board[king_position.0-2][king_position.1-1].unwrap().color != *color) {
-          return false
-        }
-      }
-
-      if(king_position.0 > 1 && king_position.1 < 7) {
-        if(board[king_position.0-2][king_position.1+1].is_some() && board[king_position.0-2][king_position.1+1].unwrap().name == PieceName::KNIGHT && board[king_position.0-2][king_position.1+1].unwrap().color != *color) {
-          return false
-        }
-      }
-
-      if(king_position.0 < 7 && king_position.1 < 6) {
-        if(board[king_position.0+1][king_position.1+2].is_some() && board[king_position.0+1][king_position.1+2].unwrap().name == PieceName::KNIGHT && board[king_position.0+1][king_position.1+2].unwrap().color != *color) {
-          return false
-        }
-      }
-
-      if(king_position.0 < 7 && king_position.1 > 1) {
-        if(board[king_position.0+1][king_position.1-2].is_some() && board[king_position.0+1][king_position.1-2].unwrap().name == PieceName::KNIGHT && board[king_position.0+1][king_position.1-2].unwrap().color != *color) {
-          return false
-        }
-      }
-
-      if(king_position.0 > 0 && king_position.1 > 1) {
-        if(board[king_position.0-1][king_position.1-2].is_some() && board[king_position.0-1][king_position.1-2].unwrap().name == PieceName::KNIGHT && board[king_position.0-1][king_position.1-2].unwrap().color != *color) {
-          return false
-        }
-      }
-
-      if(king_position.0 > 0 && king_position.1 < 6) {
-        if(board[king_position.0-1][king_position.1+2].is_some() && board[king_position.0-1][king_position.1+2].unwrap().name == PieceName::KNIGHT && board[king_position.0-1][king_position.1+2].unwrap().color != *color) {
-          return false
-        }
-      }
-
-      return true
+  
+      true
     }
+
+    let diag = check_the_diagonals(&self.board, color, king_position);
+
+    let lat = check_the_lateral(&self.board, color, king_position);
+
+    let paci = check_the_knights(&self.board, color, king_position);
  
-    return !check_the_diagonals(&self.board, color, king_position) || !check_the_lateral(&self.board, color, king_position) || !check_the_knights(&self.board, color, king_position);
+    return !diag || !lat || !paci;
   }
 
   fn validate_bishop(starting_coords: &(usize, usize), end_coords: &(usize, usize), board: &[[Option<Piece>; 8]; 8]) -> bool {
-    if(starting_coords.0.abs_diff(end_coords.0) != starting_coords.1.abs_diff(end_coords.1)) {
-      return false
+    let row_diff = starting_coords.0 as i32 - end_coords.0 as i32;
+    let col_diff = starting_coords.1 as i32 - end_coords.1 as i32;
+
+    if row_diff.abs() != col_diff.abs() || starting_coords.0 == end_coords.0 || starting_coords.1 == end_coords.1 {
+      return false;
     }
 
-    if(starting_coords.0 == end_coords.0 || starting_coords.1 == end_coords.1) {
-      return false
-    }
+    let (row_dir, col_dir) = if row_diff > 0 && col_diff > 0 { (-1, -1) }
+    else if row_diff > 0 && col_diff < 0 { (-1, 1) }
+    else if row_diff < 0 && col_diff > 0 { (1, -1) }
+    else { (1, 1) };
 
-    match starting_coords.0 > end_coords.0 {
-        true => {
-          match starting_coords.1 > end_coords.1 {
-              true => {
-                for i in 1..starting_coords.1-end_coords.1 {
-                  if(board[end_coords.0-i][end_coords.1+i] != None) {
-                    return false
-                  }
-                }
-                return true
-              },
-              false => {
-                for i in 1..end_coords.1-starting_coords.1 {
-                  if(board[end_coords.0+i][end_coords.1-i] != None) {
-                    return false
-                  }
-                }
-                return true
-              }
-          }
-        },
-        false => {
-          match starting_coords.1 > end_coords.1 {
-              true => {
-                for i in 1..starting_coords.1-end_coords.1 {
-                  if(board[end_coords.0-i][end_coords.1+i] != None) {
-                    return false
-                  }
-                }
-                return true
-              },
-              false => {
-                for i in 1..end_coords.1-starting_coords.1 {
-                  if(board[end_coords.0+i][end_coords.1-i] != None) {
-                    return false
-                  }
-                }
-                return true
-              }
-          }
-        }
+    let mut row = starting_coords.0 as i32 + row_dir;
+    let mut col = starting_coords.1 as i32 + col_dir;
+    while row != end_coords.0 as i32 && col != end_coords.1 as i32 {
+      if let Some(_) = board[row as usize][col as usize] {
+        return false;
+      }
+      row += row_dir;
+      col += col_dir;
     }
-
+    true
   }
+  
 
   fn validate_rook(starting_coords: &(usize, usize), end_coords: &(usize, usize), board: &[[Option<Piece>; 8]; 8]) -> bool {
-    match starting_coords.0.abs_diff(end_coords.0) {
-      0 => {
-        if starting_coords.1.abs_diff(end_coords.1) == 0 {
-          return false;
+    if starting_coords.0 == end_coords.0 || starting_coords.1 == end_coords.1 {
+      let (min, max) = if starting_coords.0 == end_coords.0 { (starting_coords.1, end_coords.1) } else { (starting_coords.0, end_coords.0) };
+      for i in min + 1..max {
+        if starting_coords.0 == end_coords.0 {
+          if board[starting_coords.0][i] != None { return false; }
+        } else {
+          if board[i][starting_coords.1] != None { return false; }
         }
-        
-        for i in if starting_coords.1 > end_coords.1 {end_coords.1+1..starting_coords.1} else {starting_coords.1+1..end_coords.1} {
-          if(board[starting_coords.0][i] != None) {
-            return false;
-          }
-        }
-
-        return true
-
-      },
-      _ => {
-        if starting_coords.0.abs_diff(end_coords.0) == 0 {
-          return false;
-        }
-        
-        for i in if starting_coords.0 > end_coords.0 {end_coords.0+1..starting_coords.0} else {starting_coords.0+1..end_coords.0} {
-          if(board[i][starting_coords.1] != None) {
-            return false;
-          }
-        }
-
-        return true
       }
+      return true;
     }
-
+    return false;
   }
+
 
   pub fn to_fen(&self, next: Color) -> Result<String, FenError> {
 
     let mut output = "".to_owned();
 
-    for i in self.board.into_iter().rev() {
+    for row in self.board.into_iter().rev() {
       let mut counter: usize = 0;
-      for (jindex, piece) in i.iter().enumerate() {
+      for piece in row.iter() {
         match piece {
             Some(piece) => {
               if(counter != 0) {
@@ -971,21 +708,19 @@ impl ChessBoard {
     output += " ";
     output += if(next == Color::White) {"w "} else {"b "};
 
-    if*(self.castling.get(&(Color::White, Castling::KINGSIDE)).unwrap()) {
-      output += "K"
+    let mut has_castling = false;
+    for &(color, side) in &[(Color::White, Castling::KINGSIDE), (Color::White, Castling::QUEENSIDE), (Color::Black, Castling::KINGSIDE), (Color::Black, Castling::QUEENSIDE)] {
+        if *self.castling.get(&(color, side)).unwrap() {
+            has_castling = true;
+            let letter = match side {
+                Castling::KINGSIDE => 'K',
+                Castling::QUEENSIDE => 'Q',
+            };
+            output += &if color == Color::White { letter } else { letter.to_ascii_lowercase() }.to_string();
+        }
     }
-    if*(self.castling.get(&(Color::White, Castling::QUEENSIDE)).unwrap()) {
-      output += "Q"
-    }
-    if*(self.castling.get(&(Color::Black, Castling::KINGSIDE)).unwrap()) {
-      output += "k"
-    }
-    if*(self.castling.get(&(Color::Black, Castling::QUEENSIDE)).unwrap()) {
-      output += "q"
-    }
-
-    if !(*(self.castling.get(&(Color::White, Castling::QUEENSIDE)).unwrap()) || *(self.castling.get(&(Color::White, Castling::KINGSIDE)).unwrap())  || *(self.castling.get(&(Color::Black, Castling::QUEENSIDE)).unwrap()) || *(self.castling.get(&(Color::Black, Castling::KINGSIDE)).unwrap())) {
-      output += "-"
+    if !has_castling {
+        output += "-";
     }
 
     output += " ";
@@ -1011,29 +746,62 @@ impl ChessBoard {
 
 
 
-  pub fn make_move(&mut self, mover: Color, alg: &str, next: Color) -> Result<(), Box<dyn std::error::Error>> {
-    
-    let piece = match &alg[0..1] {
-      "N" => Piece {color: mover, name: PieceName::KNIGHT},
-      "R" => Piece {color: mover, name: PieceName::ROOK},
-      "B" => Piece {color: mover, name: PieceName::BISHOP},
-      "Q" => Piece {color: mover, name: PieceName::QUEEN},
-      "K" => Piece {color: mover, name: PieceName::KING},
-      _ => Piece {color: mover, name: PieceName::PAWN}
-    };
+  pub fn make_move(&mut self, alg: &str, next: Color) -> Result<(), Box<dyn std::error::Error>> {
 
-    let starting_sqare = &alg[if piece.name == PieceName::PAWN {0} else {1}..if piece.name == PieceName::PAWN {2} else {3}];
-    let starting_coords = Self::get_square(starting_sqare).map_err(|e| ChessError::FenError(e))?;
-    
-    let end_square = &Regex::new("[a-h]{1}[1-8]{1}").unwrap().captures_iter(alg).last().unwrap()[0];
-    let end_coords = Self::get_square(end_square).map_err(|e| ChessError::FenError(e))?;
-    
     if(!self.validate_move(alg, next)?) {
       return Err(Box::new(ChessError::MoveError(MoveError::InvalidMove)))
     }
 
+    if(alg == "O-O" || alg == "O-O-O") {
+      let (king_old, king_new, rook_old, rook_new) = match (alg, next) {
+        ("O-O", Color::White) => (
+          ChessBoard::get_square("e1").unwrap(), ChessBoard::get_square("g1").unwrap(),
+          ChessBoard::get_square("h1").unwrap(), ChessBoard::get_square("f1").unwrap()
+        ),
+        ("O-O", Color::Black) => (
+          ChessBoard::get_square("e8").unwrap(), ChessBoard::get_square("g8").unwrap(),
+          ChessBoard::get_square("h8").unwrap(), ChessBoard::get_square("f8").unwrap()
+        ),
+        ("O-O-O", Color::White) => (
+          ChessBoard::get_square("e1").unwrap(), ChessBoard::get_square("c1").unwrap(),
+          ChessBoard::get_square("a1").unwrap(), ChessBoard::get_square("d1").unwrap()
+        ),
+        ("O-O-O", Color::Black) => (
+          ChessBoard::get_square("e8").unwrap(), ChessBoard::get_square("c8").unwrap(),
+          ChessBoard::get_square("a8").unwrap(), ChessBoard::get_square("d8").unwrap()
+        ),
+        _ => return Err(Box::new(MoveError::InvalidMove))
+      };
+
+      self.board[king_old.0][king_old.1] = None;
+      self.board[king_new.0][king_new.1] = Some(Piece {color: next, name: PieceName::KING});
+      self.board[rook_old.0][rook_old.1] = None;
+      self.board[rook_new.0][rook_new.1] = Some(Piece {color: next, name: PieceName::ROOK});
+
+      self.halfmove += 1;
+
+      self.castling.insert((next, Castling::KINGSIDE), false);
+      self.castling.insert((next, Castling::QUEENSIDE), false);
+
+      if(next == Color::Black) {
+        self.fullmove += 1;
+      }
+
+      self.en_passant = None;
+  
+      return Ok(())
+
+    }
+
+    let (starting_coords, end_coords, piece_name) = Self::get_data_from_move(alg).map_err(|e| ChessError::FenError(e))?;
+    
+    let piece = Piece { color: next, name: piece_name };
+
+    let starting_square = Self::get_tile(starting_coords)?;
+    
+
     if(self.board[end_coords.0][end_coords.1].is_some() && self.board[end_coords.0][end_coords.1].unwrap().name == PieceName::KING) {
-      self.winner = mover;
+      self.end = EndResult::Color(next as i32);
     }
 
     self.board[starting_coords.0][starting_coords.1] = None;
@@ -1047,28 +815,25 @@ impl ChessBoard {
     else if (piece.name == PieceName::ROOK) {
       match next {
         Color::Black => {
-          if(starting_sqare == "a8") {
+          if(starting_square == "a8") {
             self.castling.insert((Color::Black, Castling::QUEENSIDE), false);
           }
-          else if (starting_sqare == "h8") {
+          else if (starting_square == "h8") {
             self.castling.insert((Color::Black, Castling::KINGSIDE), false);
           }
         }
         Color::White => {
-          if(starting_sqare == "a1") {
+          if(starting_square == "a1") {
             self.castling.insert((Color::White, Castling::QUEENSIDE), false);
           }
-          else if (starting_sqare == "h1") {
+          else if (starting_square == "h1") {
             self.castling.insert((Color::White, Castling::KINGSIDE), false);
           }
         }
-        Color::None => todo!(),
       }
     }
-    if (piece.name == PieceName::PAWN) {
-      if(starting_coords.0.abs_diff(end_coords.0) == 2) {
-        self.en_passant = Some((starting_coords.0, (starting_coords.1 + end_coords.1)/2));
-      }
+    if (piece.name == PieceName::PAWN && (starting_coords.0.abs_diff(end_coords.0) == 2)) {
+        self.en_passant = Some(((starting_coords.0 + end_coords.0)/2, starting_coords.1));
     }
     else {
       self.en_passant = None;
@@ -1081,11 +846,21 @@ impl ChessBoard {
       self.halfmove += 1;
     }
 
-    if(mover == Color::Black) {
+    if(next == Color::Black) {
       self.fullmove += 1;
     }
+    
+    let binding = self.to_fen(next).unwrap();
+    let curr_fen = binding.split(" ").next().unwrap();
 
-    let ret = self;
+    let count = self.past.iter().filter(|fen| {let checked = fen.split(" ").next().unwrap(); println!("{checked}, {curr_fen}");  checked == curr_fen}).count();
+    
+    if(count >= 2) {
+      self.end = EndResult::Draw(true)
+    }
+    
+    self.past.push(binding);
+
     Ok(())
   }
 
@@ -1095,6 +870,13 @@ impl ChessBoard {
 enum Castling {
   QUEENSIDE,
   KINGSIDE
+}
+
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Piece {
+  pub color: Color,
+  pub name: PieceName
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1118,10 +900,4 @@ impl Display for PieceName {
         PieceName::PAWN => write!(f, "Pawn"),
     }
   }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Piece {
-  pub color: Color,
-  pub name: PieceName
 }

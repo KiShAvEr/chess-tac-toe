@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+
+<body>
+  <div>
+    <style>
+      * {
+        margin: 0px;
+      }
+
+      body {
+        height: 100vmin;
+        width: 100vmin;
+      }
+
+      html {
+        height: 100%;
+      }
+
+      .tic-container {
+        display: flex;
+        max-height: 100%;
+        max-width: 100%;
+        justify-content: start;
+        aspect-ratio: 1;
+        margin: 2.5%;
+      }
+
+      .tic-col {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+      }
+
+      .tic-cell {
+        border: 1px solid black;
+        height: auto;
+        width: auto;
+        aspect-ratio: 1 !important;
+      }
+
+      .tic-cell.dark {
+        background-color: darkgrey !important;
+      }
+
+      .tic-cell.light {
+        background-color: white !important;
+      }
+
+      .chess-container {
+        display: flex;
+        max-height: 100%;
+        max-width: 100%;
+        justify-content: start;
+        flex-direction: column;
+        aspect-ratio: 1;
+      }
+
+      .chess-col {
+        display: flex;
+        flex: 1;
+        flex-direction: row;
+      }
+
+      .chess-cell {
+        flex: 1;
+        border: 1px solid black;
+        height: auto;
+        width: auto;
+        aspect-ratio: 1 !important;
+        word-break: normal;
+        font-size: 0.1%;
+        overflow: hidden;
+      }
+
+      :not(.tic-cell)>.chess-container>.chess-col>.chess-cell.dark {
+        background-color: darkgrey;
+      }
+
+      :not(.tic-cell)>.chess-container>.chess-col>.chess-cell.light {
+        background-color: white;
+      }
+
+      .chess-cell.dark {
+        background-color: inherit;
+      }
+
+      .chess-cell.light {
+        background-color: inherit;
+      }
+
+    </style>
+    <div class="tic-container">
+      <div class="tic-col">
+        <div class="tic-cell light">
+          <div class="chess-container">
+            <div class="chess-col">
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+            </div>
+          </div>
+        </div>
+        <div class="tic-cell dark">
+          <div class="chess-container">
+            <div class="chess-col">
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+            </div>
+          </div>
+        </div>
+        <div class="tic-cell light">
+          <div class="chess-container">
+            <div class="chess-col">
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="tic-col">
+        <div class="tic-cell dark">
+          <div class="chess-container">
+            <div class="chess-col">
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+            </div>
+          </div>
+        </div>
+        <div class="tic-cell light">
+          <div class="chess-container">
+            <div class="chess-col">
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+            </div>
+          </div>
+        </div>
+        <div class="tic-cell dark">
+          <div class="chess-container">
+            <div class="chess-col">
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="tic-col">
+        <div class="tic-cell light">
+          <div class="chess-container">
+            <div class="chess-col">
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+            </div>
+          </div>
+        </div>
+        <div class="tic-cell dark">
+          <div class="chess-container">
+            <div class="chess-col">
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+            </div>
+          </div>
+        </div>
+        <div class="tic-cell light">
+          <div class="chess-container">
+            <div class="chess-col">
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+            </div>
+            <div class="chess-col">
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+              <div class="chess-cell light"></div>
+              <div class="chess-cell dark"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+
+</html>

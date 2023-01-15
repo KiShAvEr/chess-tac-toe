@@ -23,3 +23,15 @@
   font-size: 0.1%;
   overflow: hidden;
 }
+
+:not(.tic-cell)>.chess-container>.chess-col>.chess-cell.dark {
+  background-color: darkgrey;
+}
+
+:not(.tic-cell)>.chess-container>.chess-col>.chess-cell.light {
+  background-color: white;
+}
+
+.chess-cell.selected {
+  background-color: aquamarine;
+}
