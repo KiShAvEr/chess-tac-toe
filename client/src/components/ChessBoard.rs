@@ -1,4 +1,4 @@
-use std::{collections::HashMap};
+use std::{collections::HashMap, any::Any};
 
 use dioxus::prelude::*;
 use helpers::{ChessBoard, PieceName, chesstactoe::{Color, MovePieceRequest}};
@@ -41,10 +41,18 @@ async fn on_click(ev: MouseEvent, square: (usize, usize), selected: &UseState<Op
 
     println!("{piece_name}{start_tile}{x}{end_tile}");
 
-    let is_valid = chess.validate_move(&format!("{piece_name}{start_tile}{x}{end_tile}"), side);
+    let mut alg = format!("{piece_name}{start_tile}{x}{end_tile}");
+
+    if piece_name == "K" && ((side == Color::White && (start_tile == "e1" && end_tile == "g1")) || (side == Color::Black && (start_tile == "e8" && end_tile == "g8"))) {
+        alg = "O-O".to_owned()
+    } else if piece_name == "K" && ((side == Color::White && (start_tile == "e1" && end_tile == "c1")) || (side == Color::Black && (start_tile == "e8" && end_tile == "c8"))) {
+        alg = "O-O-O".to_owned()
+    }
+
+    let is_valid = chess.validate_move(&alg, side);
 
     if is_valid.is_ok() && is_valid.unwrap() {
-        let res = get_client().unwrap().move_piece(MovePieceRequest { board: board_num, alg: format!("{piece_name}{start_tile}{x}{end_tile}"), uuid: utils::get_uuid().unwrap() }).await;
+        let res = get_client().unwrap().move_piece(MovePieceRequest { board: board_num, alg, uuid: utils::get_uuid().unwrap() }).await;
     }
 
 
@@ -52,11 +60,12 @@ async fn on_click(ev: MouseEvent, square: (usize, usize), selected: &UseState<Op
 
 }
 
-#[derive(Debug, PartialEq, Props)]
+#[derive(Props)]
 pub struct ChessProps<'a> {
     side: Color,
     chess: &'a ChessBoard,
     board_num: u32,
+    onclick: Option<EventHandler<'a, MouseEvent>>
 }
 
 pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
@@ -82,7 +91,8 @@ pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
     let selected = use_state(&cx, || None::<(usize, usize)>);
 
     cx.render(rsx!{
-        div { class: "chess-container",
+        div { 
+            class: "chess-container",
             board.iter().enumerate().map(|(col_idx, col)| {
                 let map = images.clone();
                 rsx!(
@@ -104,7 +114,9 @@ pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
                                 return rsx!(
                                     div {
                                         class: "{class}",
-                                        onclick: move |ev| {let selected: UseState<Option<(usize, usize)>> = selected.clone();let chess = cx.props.chess.clone();let board_num = cx.props.board_num.clone();let side = cx.props.side.clone(); cx.spawn(async move {on_piece_click(ev, (real_col, real_row), &selected, &chess, board_num, side).await})},
+                                        onclick: move |ev| { if let Some(onclick) = cx.props.onclick.as_ref() {
+                                            onclick.call(ev.clone());
+                                            }; let selected: UseState<Option<(usize, usize)>> = selected.clone();let chess = cx.props.chess.clone();let board_num = cx.props.board_num.clone();let side = cx.props.side.clone(); cx.spawn(async move {on_piece_click(ev, (real_col, real_row), &selected, &chess, board_num, side).await})},
                                         img {
                                             src: "{src}",
                                             height: "100%",
@@ -117,7 +129,9 @@ pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
                                 return rsx!(
                                     div {
                                         class: "{class}", 
-                                        onclick: move |ev| {let selected: UseState<Option<(usize, usize)>> = selected.clone();let chess = cx.props.chess.clone();let board_num = cx.props.board_num.clone();let side = cx.props.side.clone(); cx.spawn(async move {on_click(ev, (real_col, real_row), &selected, &chess, board_num, side).await})},
+                                        onclick: move |ev| {let selected: UseState<Option<(usize, usize)>> = selected.clone();let chess = cx.props.chess.clone();let board_num = cx.props.board_num.clone();let side = cx.props.side.clone(); if let Some(onclick) = cx.props.onclick.as_ref() {
+                                            onclick.call(ev.clone());
+                                        }; cx.spawn(async move {on_click(ev, (real_col, real_row), &selected, &chess, board_num, side).await})},
                                     }
                                 )
                             }

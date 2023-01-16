@@ -334,6 +334,7 @@ dependencies = [
  "base64 0.21.0",
  "dioxus",
  "dioxus-desktop",
+ "dioxus-free-icons",
  "dioxus-router",
  "helpers",
  "include_dir",
@@ -677,6 +678,15 @@ dependencies = [
  "tokio",
  "webbrowser",
  "wry",
+]
+
+[[package]]
+name = "dioxus-free-icons"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4e88f7a2fc4008a2c9ded210bf08b1ab7501375d77aa8065564eb5dd4c930bb6"
+dependencies = [
+ "dioxus",
 ]
 
 [[package]]

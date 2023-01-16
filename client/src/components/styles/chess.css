@@ -33,5 +33,11 @@
 }
 
 .chess-cell.selected {
-  background-color: aquamarine;
+  background-color: aquamarine !important;
+}
+
+.board-view {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
 }
