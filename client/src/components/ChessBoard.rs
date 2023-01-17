@@ -49,6 +49,13 @@ async fn on_click(ev: MouseEvent, square: (usize, usize), selected: &UseState<Op
         alg = "O-O-O".to_owned()
     }
 
+    
+    if piece_name == "" &&  ((side == Color::White && square.0 == 7) || (side == Color::Black && square.0 == 0)) {
+        alg += "K"
+    }
+    
+    println!("{:?}, {:?}, {alg}", side, square);
+
     let is_valid = chess.validate_move(&alg, side);
 
     if is_valid.is_ok() && is_valid.unwrap() {
