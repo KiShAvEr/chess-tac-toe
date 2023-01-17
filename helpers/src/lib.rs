@@ -374,8 +374,10 @@ impl ChessBoard {
   
     let starting_sqare = &move_string[if name == PieceName::PAWN {0} else {1}..if name == PieceName::PAWN {2} else {3}];
     let starting_coords = ChessBoard::get_square(starting_sqare)?;
+
+    let regex = regex!("[a-h]{1}[1-8]{1}");
     
-    let end_square = &Regex::new("[a-h]{1}[1-8]{1}").unwrap().captures_iter(move_string).last().unwrap()[0];
+    let end_square = &regex.captures_iter(move_string).last().unwrap()[0];
     let end_coords = ChessBoard::get_square(end_square)?;
   
     return Ok((starting_coords, end_coords, name))
@@ -385,7 +387,7 @@ impl ChessBoard {
   //TODO test
   pub fn validate_move(&self, move_string: &str, next: Color) -> Result<bool, Box<dyn std::error::Error>> {
 
-    let regex = regex!(r"(O-O-O)|(O-O)|([R,N,B,K,Q]{0,1}([a-h]{1}[1-8]{1})x{0,1}([a-h]{1}[1-8]{1})\+{0,1})");
+    let regex = regex!(r"^((O-O-O)|(O-O)|([RNBKQ]{0,1}([a-h]{1}[1-8]{1})x{0,1}([a-h]{1}[1-8]{1}))|(([a-h]{1}[1-8]{1})x{0,1}([a-h]{1}[1-8]{1})[RNBKQ]{0,1}))$");
 
     if(!regex.is_match(move_string)) {
       return Err(Box::new(FenError::InvalidFormat))
@@ -494,20 +496,28 @@ impl ChessBoard {
               Color::White => self.en_passant == Some(end_coords),
           };
 
+          let mut valid = false;
+
           if move_string.contains("x") {
             let diagonal_move = match next {
                 Color::Black => starting_coords.0.saturating_sub(end_coords.0) == 1 && starting_coords.1.abs_diff(end_coords.1) == 1,
                 Color::White => end_coords.0.saturating_sub(starting_coords.0) == 1 && starting_coords.1.abs_diff(end_coords.1) == 1,
             };
         
-            return Ok(diagonal_move && (self.board[end_coords.0][end_coords.1] != None || en_passant))
+            valid = diagonal_move && (self.board[end_coords.0][end_coords.1] != None || en_passant)
+          } else if (double || single) && starting_coords.1 == end_coords.1 {
+            valid = self.board[end_coords.0][end_coords.1] == None || en_passant
           }
-          
-          if (double || single) && starting_coords.1 == end_coords.1 {
-              return Ok(self.board[end_coords.0][end_coords.1] == None || en_passant)
+
+          if end_coords.0 == 0 || end_coords.0 == 7 {
+            let endings = ["K", "R", "B", "N", "Q"];
+            if endings.contains(&move_string.chars().last().unwrap().to_string().as_str()) {
+              return Ok(valid)
+            }
+            return Ok(false)
           }
-          
-          return Err(Box::new(MoveError::InvalidMove))
+
+          return Ok(valid);
         },
     }
 
@@ -799,8 +809,15 @@ impl ChessBoard {
 
     let starting_square = Self::get_tile(starting_coords)?;
     
+    let opposite = if next == Color::White {Color::Black} else {Color::White};
 
-    if(self.board[end_coords.0][end_coords.1].is_some() && self.board[end_coords.0][end_coords.1].unwrap().name == PieceName::KING) {
+    if 
+      self.board[end_coords.0][end_coords.1].is_some() 
+      && !self.board.iter().any(|row| 
+          row.iter().any(|cell| 
+            cell.is_some() && cell.unwrap().name == PieceName::KING && cell.unwrap().color == opposite
+          )
+        ) {
       self.end = EndResult::Color(next as i32);
     }
 
@@ -844,6 +861,20 @@ impl ChessBoard {
     }
     else {
       self.halfmove += 1;
+    }
+
+    let endings = ["Q", "K", "R", "N", "B"];
+
+    if piece.name == PieceName::PAWN && endings.contains(&alg.chars().last().unwrap().to_string().as_str()) {
+      let promoted_name = match alg.chars().last().unwrap().to_string().as_str() {
+        "Q" => PieceName::QUEEN,
+        "K" => PieceName::KING,
+        "R" => PieceName::ROOK,
+        "N" => PieceName::KNIGHT,
+        "B" => PieceName::BISHOP,
+        _ => panic!("BRUHHHHH")
+      };
+      self.board[end_coords.0][end_coords.1] = Some(Piece { name: promoted_name, color: piece.color });
     }
 
     if(next == Color::Black) {
