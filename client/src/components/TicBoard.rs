@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use dioxus::{prelude::*, html::style};
+use dioxus_desktop::{tao::window::Window, use_window};
 use dioxus_router::Link;
 use helpers::{chesstactoe::{Color, SubscribeBoardRequest}, TicTacToe};
 use utils::set_uuid;
@@ -32,6 +33,8 @@ pub fn TicBoard(cx: Scope) -> Element {
 
   println!("{:?}", selected_board);
 
+  // use_window(&cx).webview.open_devtools();
+
   match board.get() {
     Some(board) => match selected_board.get() {
         Some(board_num) => cx.render(rsx!{
@@ -41,6 +44,8 @@ pub fn TicBoard(cx: Scope) -> Element {
               onclick: |_| {selected_board.set(None)},
               class: "back-icon",
               Icon {
+                width: 50,
+                height: 50,
                 icon: IoArrowBack,
               },
             }

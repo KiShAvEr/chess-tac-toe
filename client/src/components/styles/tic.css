@@ -1,9 +1,10 @@
 .tic-container {
   display: flex;
-  max-height: 100%;
-  max-width: 100%;
+  max-height: calc(100vmin - 5%);
+  max-width: calc(100vmin - 5%);
   justify-content: start;
-  aspect-ratio: 1;
+  aspect-ratio: 1 !important;
+  padding-bottom: 100%;
   margin: 2.5%;
 }
 
@@ -11,6 +12,10 @@
   display: flex;
   flex: 1;
   flex-direction: column;
+  aspect-ratio: 1/8 !important;
+  padding-bottom: calc(1/8*100%);
+  max-width: calc(100%/3);
+  max-height: 100%;
 }
 
 .tic-cell {
@@ -26,4 +31,22 @@
 
 .tic-cell.light {
   background-color: white !important;
+}
+
+.board-view {
+  display: flex;
+  flex-direction: row;
+  height: 100%;
+  width: 100%;
+}
+
+.back-icon {
+  padding-right: 5%;
+  aspect-ratio: 1;
+  padding-bottom: 100%;
+  width: fit-content;
+  height: fit-content;
+  display: contents;
+  justify-self: start;
+  align-self: start;
 }

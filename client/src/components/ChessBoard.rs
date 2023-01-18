@@ -3,6 +3,7 @@ use std::{collections::HashMap, any::Any};
 use dioxus::prelude::*;
 use helpers::{ChessBoard, PieceName, chesstactoe::{Color, MovePieceRequest}};
 use include_dir::{include_dir, Dir};
+use once_cell::sync::Lazy;
 use utils::get_client;
 
 static DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/src/assets");
@@ -75,6 +76,29 @@ pub struct ChessProps<'a> {
     onclick: Option<EventHandler<'a, MouseEvent>>
 }
 
+static VALID_MOVES: Lazy<HashMap<String, Vec<(isize, isize)>>> = Lazy::new(|| {
+    let mut map = HashMap::new();
+
+    let rook_moves = (-8..=8).map(|val| vec![(0, val), (val, 0)]).filter(|el| !el.contains(&(0, 0))).reduce(|rest, next| [rest, next].concat()).unwrap();
+
+    let bishop_moves = (1..=8).map(|val| vec![(val, -val), (-val, val), (val, val), (-val, -val)]).reduce(|rest, next| [rest, next].concat()).unwrap();
+
+    let pawn_moves = vec![(1, 0), (-1, 0), (2, 0), (-2, 0), (1, 1), (1, -1), (-1, 1), (-1, -1)];
+
+    let knight_moves = vec![(2, 1), (-2, 1), (-2, -1), (2, -1), (1, 2), (-1, 2), (-1, -2), (1, -2)];
+
+    let king_moves = vec![(0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1), (-1, 0), (-1, 1)];
+
+    map.insert("R".into(), rook_moves.clone());
+    map.insert("N".into(), knight_moves);
+    map.insert("B".into(), bishop_moves.clone());
+    map.insert("Q".into(), [rook_moves, bishop_moves].concat());
+    map.insert("K".into(), king_moves);
+    map.insert("P".into(), pawn_moves);
+
+    map
+});
+
 pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
 
     let mut board = cx.props.chess.board;
@@ -97,6 +121,22 @@ pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
 
     let selected = use_state(&cx, || None::<(usize, usize)>);
 
+    let piece_name = if selected.is_some() {
+        match board[selected.get().unwrap().0][selected.get().unwrap().1] {
+            Some(piece) => match piece.name {
+                PieceName::ROOK => "R",
+                PieceName::KNIGHT => "N",
+                PieceName::BISHOP => "B",
+                PieceName::QUEEN => "Q",
+                PieceName::KING => "K",
+                PieceName::PAWN => "",
+            },
+            None => "",
+        }
+    } else {
+        ""
+    };
+
     cx.render(rsx!{
         div { 
             class: "chess-container",
@@ -112,9 +152,36 @@ pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
                             };
                             let real_col = if cx.props.side == Color::White {7-col_idx} else {col_idx};
                             let real_row = if cx.props.side == Color::White {cell_idx} else {7-cell_idx};
-                            let class = format!("chess-cell {} {}", 
+                            let valid_move = if selected.is_some() && VALID_MOVES.get(if piece_name == "" {"P"} else {piece_name}).unwrap().iter().any(|la_move| {
+                                let square = selected.unwrap();
+                                square.0.saturating_add_signed(la_move.0) == real_col && square.1.saturating_add_signed(la_move.1) == real_row
+                            }) {
+                                let end_tile = ChessBoard::get_tile((real_col, real_row)).unwrap();
+
+                                let starting_tile = ChessBoard::get_tile(selected.unwrap()).unwrap();
+
+                                let x = if cell.is_some() {
+                                    "x"
+                                } else {
+                                    ""
+                                };
+                            
+                                let move_str = format!("{piece_name}{starting_tile}{x}{end_tile}");
+
+                                let valid = cx.props.chess.validate_move(&move_str, cx.props.side);
+
+                                match valid {
+                                    Ok(true) => "valid",
+                                    _ => ""
+                                }
+
+                            } else {
+                                ""
+                            };
+                            let class = format!("chess-cell {} {} {}", 
                                 if (col_idx+cell_idx)%2==0 {"light"} else {"dark"}, 
-                                if selected.is_some() && selected.unwrap().0 == real_col && selected.unwrap().1 == real_row {"selected"} else {""}
+                                if selected.is_some() && selected.unwrap().0 == real_col && selected.unwrap().1 == real_row {"selected"} else {""},
+                                valid_move
                             );
                             if piece != "" {
                                 let src = map.get(&piece).unwrap().to_owned();

@@ -9,23 +9,7 @@ use crate::components::{TicBoard::TicBoard, ChessBoard::ChessBoard};
 
 pub fn MainScreen(cx: Scope) -> Element {
 
-  let mut style = "* {
-    margin: 0px;
-  }
-  
-  body {
-    height: 100vmin;
-    width: 100vmin;
-  }
-  
-  html {
-    height: 100%;
-    //overflow: hidden;
-  }".to_owned();
-
-  let style_ext = include_dir!("$CARGO_MANIFEST_DIR/src/components/styles/").files().fold("".to_owned(), |last: String, next: &File| last + next.contents_utf8().unwrap());
-
-  style += &style_ext;
+  let style = include_dir!("$CARGO_MANIFEST_DIR/src/components/styles/").files().fold("".to_owned(), |last: String, next: &File| last + next.contents_utf8().unwrap());
 
   let future = use_future(&cx, (),|_| async move {
     let client = get_client();
@@ -48,6 +32,7 @@ pub fn MainScreen(cx: Scope) -> Element {
   match future.value() {
     Some(true) => cx.render(rsx!(
       div {
+        class: "main-container",
         style {"{style}"}
         TicBoard {}
         // ChessBoard {side: helpers::chesstactoe::Color::White}
