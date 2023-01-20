@@ -664,7 +664,11 @@ impl ChessBoard {
 
   fn validate_rook(starting_coords: &(usize, usize), end_coords: &(usize, usize), board: &[[Option<Piece>; 8]; 8]) -> bool {
     if starting_coords.0 == end_coords.0 || starting_coords.1 == end_coords.1 {
-      let (min, max) = if starting_coords.0 == end_coords.0 { (starting_coords.1, end_coords.1) } else { (starting_coords.0, end_coords.0) };
+      let (min, max) = if starting_coords.0 == end_coords.0 {
+         (std::cmp::min(starting_coords.1, end_coords.1), std::cmp::max(starting_coords.1, end_coords.1)) 
+        } else {
+           (std::cmp::min(starting_coords.0, end_coords.0), std::cmp::max(starting_coords.0, end_coords.0)) 
+        };
       for i in min + 1..max {
         if starting_coords.0 == end_coords.0 {
           if board[starting_coords.0][i] != None { return false; }
