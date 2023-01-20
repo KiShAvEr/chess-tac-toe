@@ -362,7 +362,7 @@ impl ChessBoard {
 
   }
 
-  fn get_data_from_move(move_string: &str) -> Result<((usize, usize), (usize, usize), PieceName), FenError> {
+  pub fn get_data_from_move(move_string: &str) -> Result<((usize, usize), (usize, usize), PieceName), FenError> {
     let name = match &move_string[0..1] {
       "N" => PieceName::KNIGHT,
       "R" => PieceName::ROOK,

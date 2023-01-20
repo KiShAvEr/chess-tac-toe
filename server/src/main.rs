@@ -67,7 +67,7 @@ impl Game for GameService {
         let next = game.game.next;
 
         let mut res = SubscribeBoardResponse {
-            game: Some(TicTacToe { chesses: chesses.iter().flatten().map(|chess| Chess { end_result: Some(chess.end.clone()), fen: chess.to_fen(next).unwrap() }).collect(), next: next as i32, last_move: request.alg }),
+            game: Some(TicTacToe { chesses: chesses.iter().flatten().map(|chess| Chess { end_result: Some(chess.end.clone()), fen: chess.to_fen(next).unwrap() }).collect(), next: next as i32, last_move: format!("{}, {}", request.board, request.alg) }),
             color: Color::White.into(),
             request: Some(MidGameRequest {
                 draw: None,
