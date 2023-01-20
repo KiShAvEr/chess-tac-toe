@@ -1,7 +1,7 @@
 //TODO: invalid moves
 
 pub mod tests {
-    use helpers::{TicTacToe, chesstactoe::chess::EndResult};
+    use helpers::{TicTacToe, chesstactoe::chess::EndResult, ChessBoard};
 
     const COORDS: (usize, usize) = (0, 0);
 
@@ -61,6 +61,19 @@ pub mod tests {
         let res = tic.make_move(COORDS, "e2e4");
 
         assert!(res.is_err());
+
+    }
+
+    #[test]
+    fn rook_bug() {
+        let mut tic = TicTacToe::default();
+        tic.chesses[0][0] = ChessBoard::parse_fen("2bqkb1r/ppp2ppp/2n1pn2/3p4/2PP1B2/2R1P3/rP3ppp/1N1QKBN1 w KQkq - 0 0").unwrap();
+
+        let chers_move = "Qd1a1";
+
+        // println!("{:?}", tic.make_move((0, 0), chers_move));
+
+        assert!(tic.validate_move((0, 0), chers_move).is_err() || !tic.validate_move((0, 0), chers_move).unwrap());
 
     }
 
