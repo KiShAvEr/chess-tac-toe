@@ -16,7 +16,7 @@ mod pages;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    connect("http://31.21.202.217:50051".to_owned()).await.unwrap();
+    connect("http://localhost:50051".to_owned()).await.unwrap();
     dioxus_desktop::launch(app);
     
     Ok(())

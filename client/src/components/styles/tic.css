@@ -50,3 +50,7 @@
   justify-self: start;
   align-self: start;
 }
+
+.tic-cell.over {
+  content: "X";
+}

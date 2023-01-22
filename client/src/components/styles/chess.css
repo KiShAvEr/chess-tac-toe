@@ -41,3 +41,11 @@
 .chess-cell.valid {
   background-color: lightcoral !important;
 }
+
+.chess-cell.last {
+  background-color: blueviolet !important;
+}
+
+.chess-cell.valid.last {
+  background-color: rgb(180, 60, 190) !important;
+}

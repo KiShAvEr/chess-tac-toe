@@ -68,42 +68,48 @@ async fn on_click(ev: MouseEvent, square: (usize, usize), selected: &UseState<Op
 
 }
 
-#[derive(Props)]
-pub struct ChessProps<'a> {
-    side: Color,
-    chess: &'a ChessBoard,
-    board_num: u32,
-    onclick: Option<EventHandler<'a, MouseEvent>>
-}
 
 static VALID_MOVES: Lazy<HashMap<String, Vec<(isize, isize)>>> = Lazy::new(|| {
     let mut map = HashMap::new();
-
+    
     let rook_moves = (-8..=8).map(|val| vec![(0, val), (val, 0)]).filter(|el| !el.contains(&(0, 0))).reduce(|rest, next| [rest, next].concat()).unwrap();
-
+    
     let bishop_moves = (1..=8).map(|val| vec![(val, -val), (-val, val), (val, val), (-val, -val)]).reduce(|rest, next| [rest, next].concat()).unwrap();
-
+    
     let pawn_moves = vec![(1, 0), (-1, 0), (2, 0), (-2, 0), (1, 1), (1, -1), (-1, 1), (-1, -1)];
-
+    
     let knight_moves = vec![(2, 1), (-2, 1), (-2, -1), (2, -1), (1, 2), (-1, 2), (-1, -2), (1, -2)];
-
+    
     let king_moves = vec![(0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1), (-1, 0), (-1, 1)];
-
+    
     map.insert("R".into(), rook_moves.clone());
     map.insert("N".into(), knight_moves);
     map.insert("B".into(), bishop_moves.clone());
     map.insert("Q".into(), [rook_moves, bishop_moves].concat());
     map.insert("K".into(), king_moves);
     map.insert("P".into(), pawn_moves);
-
+    
     map
 });
+
+#[derive(Props)]
+pub struct ChessProps<'a> {
+    side: Color,
+    chess: &'a ChessBoard,
+    board_num: u32,
+    onclick: Option<EventHandler<'a, MouseEvent>>,
+    last_move: String
+}
 
 pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
 
     let mut board = cx.props.chess.board;
 
     let mut images: HashMap<String, String> = HashMap::new();
+
+    let mut split_move = cx.props.last_move.split(" ");
+
+    let (last_board, last_move) = (split_move.next(), split_move.next());
 
     DIR.files().for_each(|file| {
         images.insert(file.path().file_name().unwrap().to_str().unwrap()[..file.path().file_name().unwrap().len()-4].to_string(),
@@ -114,7 +120,7 @@ pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
         board.reverse();
     }
     else {
-        for i in (0..board.len()) {
+        for i in 0..board.len() {
             board[i].reverse();
         }
     }
@@ -122,7 +128,14 @@ pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
     let selected = use_state(&cx, || None::<(usize, usize)>);
 
     let piece_name = if selected.is_some() {
-        match board[selected.get().unwrap().0][selected.get().unwrap().1] {
+        let selected = selected.get().unwrap();
+
+        let (col, row) = match cx.props.side {
+            Color::White => (7-selected.0, selected.1),
+            Color::Black => (selected.0, 7-selected.1)
+        };
+
+        match board[col][row] {
             Some(piece) => match piece.name {
                 PieceName::ROOK => "R",
                 PieceName::KNIGHT => "N",
@@ -178,10 +191,33 @@ pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
                             } else {
                                 ""
                             };
-                            let class = format!("chess-cell {} {} {}", 
+
+                            let is_last_board = match last_board {
+                                Some(board) => match board.parse::<u32>() {
+                                    Ok(num) => num == cx.props.board_num,
+                                    Err(_) => false
+                                },
+                                None => false
+                            };
+
+                            let is_last_move = match last_move {
+                                Some(move_str) => {
+                                    let (start, end, _piece) = ChessBoard::get_data_from_move(move_str).unwrap();
+
+                                    (real_col == start.0 && real_row == start.1) || (real_col == end.0 && real_row == end.1) 
+                                },
+                                None => false
+                            };
+
+                            if is_last_board {
+                                println!("{:?}", last_move);
+                            }
+
+                            let class = format!("chess-cell {} {} {} {}", 
                                 if (col_idx+cell_idx)%2==0 {"light"} else {"dark"}, 
                                 if selected.is_some() && selected.unwrap().0 == real_col && selected.unwrap().1 == real_row {"selected"} else {""},
-                                valid_move
+                                valid_move,
+                                if is_last_board && is_last_move {"last"} else {""}
                             );
                             if piece != "" {
                                 let src = map.get(&piece).unwrap().to_owned();
