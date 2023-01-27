@@ -1,7 +1,7 @@
 use std::{collections::HashMap, any::Any};
 
 use dioxus::prelude::*;
-use helpers::{ChessBoard, PieceName, chesstactoe::{Color, MovePieceRequest}};
+use helpers::{ChessBoard, PieceName, chesstactoe::{Color, MovePieceRequest}, Piece};
 use include_dir::{include_dir, Dir};
 use once_cell::sync::Lazy;
 use utils::get_client;
@@ -44,9 +44,9 @@ async fn on_click(ev: MouseEvent, square: (usize, usize), selected: &UseState<Op
 
     let mut alg = format!("{piece_name}{start_tile}{x}{end_tile}");
 
-    if piece_name == "K" && ((side == Color::White && (start_tile == "e1" && end_tile == "g1")) || (side == Color::Black && (start_tile == "e8" && end_tile == "g8"))) {
+    if piece_name == "K" && ((side == Color::White && (start_tile == "e1" && (end_tile == "g1" || end_tile == "h1"))) || (side == Color::Black && (start_tile == "e8" && (end_tile == "g8" || end_tile == "h8")))) {
         alg = "O-O".to_owned()
-    } else if piece_name == "K" && ((side == Color::White && (start_tile == "e1" && end_tile == "c1")) || (side == Color::Black && (start_tile == "e8" && end_tile == "c8"))) {
+    } else if piece_name == "K" && ((side == Color::White && (start_tile == "e1" && (end_tile == "c1" || end_tile == "a1"))) || (side == Color::Black && (start_tile == "e8" && (end_tile == "c8" || end_tile == "a8")))) {
         alg = "O-O-O".to_owned()
     }
 
@@ -98,7 +98,8 @@ pub struct ChessProps<'a> {
     chess: &'a ChessBoard,
     board_num: u32,
     onclick: Option<EventHandler<'a, MouseEvent>>,
-    last_move: String
+    last_move: String,
+    last: Color
 }
 
 pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
@@ -202,9 +203,20 @@ pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
 
                             let is_last_move = match last_move {
                                 Some(move_str) => {
-                                    let (start, end, _piece) = ChessBoard::get_data_from_move(move_str).unwrap();
-
-                                    (real_col == start.0 && real_row == start.1) || (real_col == end.0 && real_row == end.1) 
+                        
+                                    let (start, end, _piece) = if move_str == "O-O" || move_str == "O-O-O" {
+                                        match (move_str, cx.props.last ) {
+                                            ("O-O", Color::White) => (ChessBoard::get_square("e1").unwrap(), ChessBoard::get_square("g1").unwrap(), PieceName::KING),
+                                            ("O-O", Color::Black) => (ChessBoard::get_square("e8").unwrap(), ChessBoard::get_square("g8").unwrap(), PieceName::KING),
+                                            ("O-O-O", Color::White) => (ChessBoard::get_square("e1").unwrap(), ChessBoard::get_square("c1").unwrap(), PieceName::KING),
+                                            ("O-O-O", Color::Black) => (ChessBoard::get_square("e8").unwrap(), ChessBoard::get_square("c8").unwrap(), PieceName::KING),
+                                            _ => unreachable!()
+                                        }
+                                    } else {
+                                        ChessBoard::get_data_from_move(move_str).unwrap()
+                                    };
+                        
+                                    (real_col == start.0 && real_row == start.1) || (real_col == end.0 && real_row == end.1)
                                 },
                                 None => false
                             };

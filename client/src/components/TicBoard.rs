@@ -20,6 +20,9 @@ pub fn TicBoard(cx: Scope) -> Element {
   let last_move = use_state(&cx, || "".to_owned());
   let set_last_move = last_move.setter();
 
+  let next = use_state(&cx, || Color::White as i32);
+  let set_next = next.setter();
+
   let a = use_future(&cx, (), |_| async move {
     let mut client = utils::get_client().unwrap();
 
@@ -30,6 +33,7 @@ pub fn TicBoard(cx: Scope) -> Element {
       set_board(Some(TicTacToe::from(msg.game.as_ref().unwrap().clone())));
       set_side(msg.color);
       set_last_move(msg.game.as_ref().unwrap().last_move.clone());
+      set_next(msg.game.as_ref().unwrap().next.clone());
     }
   });
 
@@ -53,7 +57,7 @@ pub fn TicBoard(cx: Scope) -> Element {
                 icon: IoArrowBack,
               },
             }
-            ChessBoard {side: Color::from_i32(**side).unwrap(), chess: &board.chesses[board_num/3][board_num%3], board_num: (*board_num).try_into().unwrap(), last_move: (*last_move).to_string()}
+            ChessBoard {last: Color::from_i32(1-**next).unwrap(), side: Color::from_i32(**side).unwrap(), chess: &board.chesses[board_num/3][board_num%3], board_num: (*board_num).try_into().unwrap(), last_move: (*last_move).to_string()}
           }
         }),
         None => cx.render(rsx!{
@@ -68,7 +72,7 @@ pub fn TicBoard(cx: Scope) -> Element {
                     rsx!{
                       div {
                         class: "{class}",
-                        ChessBoard {onclick: move |_| {println!("he?"); selected_board.set(Some(col*3+row))}, side: Color::from_i32(**side).unwrap(), chess: &board.chesses[col][row], board_num: (col*3+row).try_into().unwrap(), last_move: (*last_move).to_string()}
+                        ChessBoard {last: Color::from_i32(1-**next).unwrap(), onclick: move |_| {println!("he?"); selected_board.set(Some(col*3+row))}, side: Color::from_i32(**side).unwrap(), chess: &board.chesses[col][row], board_num: (col*3+row).try_into().unwrap(), last_move: (*last_move).to_string()}
                       }
                     }
                   })

@@ -1,0 +1,3 @@
+[target.x86_64-pc-windows-msvc]
+xargo = false
+image = "kdeorg/windows-msvc2019"
