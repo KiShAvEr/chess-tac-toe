@@ -1,47 +1,61 @@
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
-use dioxus::{prelude::*, html::style};
+use dioxus::{html::style, prelude::*};
 use dioxus_desktop::{tao::window::Window, use_window};
+use dioxus_free_icons::{icons::io_icons::IoArrowBack, Icon};
 use dioxus_router::Link;
-use helpers::{chesstactoe::{Color, SubscribeBoardRequest, chess::EndResult}, TicTacToe};
+use helpers::{
+  chesstactoe::{chess::EndResult, game_client::GameClient, Color, SubscribeBoardRequest},
+  TicTacToe,
+};
+use tokio::sync::Mutex;
+use tonic::transport::Channel;
 use utils::set_uuid;
-use dioxus_free_icons::{Icon, icons::io_icons::IoArrowBack};
 
 use crate::components::ChessBoard::ChessBoard;
 
 pub fn TicBoard(cx: Scope) -> Element {
+  let client = cx.use_hook(|| cx.consume_context::<Arc<Mutex<GameClient<Channel>>>>());
 
   let side = use_state(&cx, || Color::White as i32);
   let set_side = side.setter();
 
   let board = use_state(&cx, || None);
   let set_board = board.setter();
-  
+
   let last_move = use_state(&cx, || "".to_owned());
   let set_last_move = last_move.setter();
 
   let next = use_state(&cx, || Color::White as i32);
   let set_next = next.setter();
 
-  let a = use_future(&cx, (), |_| async move {
-    let mut client = utils::get_client().unwrap();
+  let client = client.clone();
 
-    let mut res = client.subscribe_board(SubscribeBoardRequest { uuid: utils::get_uuid().unwrap() }).await.unwrap().into_inner();
+  use_future(&cx, (), |_| async move {
+    if client.is_some() {
+      let mut res = client
+        .unwrap()
+        .lock()
+        .await
+        .subscribe_board(SubscribeBoardRequest {
+          uuid: utils::get_uuid().unwrap(),
+        })
+        .await
+        .unwrap()
+        .into_inner();
 
+      while let Ok(Some(msg)) = res.message().await {
+        println!("{msg:?}");
 
-    while let Ok(Some(msg)) = res.message().await {
-      set_board(Some(TicTacToe::from(msg.game.as_ref().unwrap().clone())));
-      set_side(msg.color);
-      set_last_move(msg.game.as_ref().unwrap().last_move.clone());
-      set_next(msg.game.as_ref().unwrap().next.clone());
+        set_board(Some(TicTacToe::from(msg.game.as_ref().unwrap().clone())));
+        set_side(msg.color);
+        set_last_move(msg.game.as_ref().unwrap().last_move.clone());
+        set_next(msg.game.as_ref().unwrap().next.clone());
+      }
     }
   });
 
-  let selected_board = use_state(cx,  || None::<usize>);
-
-  println!("{:?}", selected_board);
-
-  // use_window(&cx).webview.open_devtools();
+  let selected_board = use_state(cx, || None::<usize>);
 
   match board.get() {
     Some(board) => match selected_board.get() {
@@ -72,7 +86,7 @@ pub fn TicBoard(cx: Scope) -> Element {
                     rsx!{
                       div {
                         class: "{class}",
-                        ChessBoard {last: Color::from_i32(1-**next).unwrap(), onclick: move |_| {println!("he?"); selected_board.set(Some(col*3+row))}, side: Color::from_i32(**side).unwrap(), chess: &board.chesses[col][row], board_num: (col*3+row).try_into().unwrap(), last_move: (*last_move).to_string()}
+                        ChessBoard {last: Color::from_i32(1-**next).unwrap(), onclick: move |_| {selected_board.set(Some(col*3+row))}, side: Color::from_i32(**side).unwrap(), chess: &board.chesses[col][row], board_num: (col*3+row).try_into().unwrap(), last_move: (*last_move).to_string()}
                       }
                     }
                   })

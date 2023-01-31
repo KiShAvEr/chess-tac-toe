@@ -1,53 +1,58 @@
+use std::sync::Arc;
+
 use dioxus::prelude::*;
-use helpers::chesstactoe::{JoinRequest, JoinResponse};
+use helpers::chesstactoe::{game_client::GameClient, JoinRequest};
 use include_dir::{include_dir, File};
-use tonic::{Request, Status, Response, Streaming};
-use utils::get_client;
+use tokio::sync::Mutex;
+use tonic::{transport::Channel, Request};
 
-
-use crate::components::{TicBoard::TicBoard, ChessBoard::ChessBoard};
+use crate::components::{ChessBoard::ChessBoard, TicBoard::TicBoard};
 
 pub fn MainScreen(cx: Scope) -> Element {
+  let style = include_dir!("$CARGO_MANIFEST_DIR/src/components/styles/")
+    .files()
+    .fold("".to_owned(), |last: String, next: &File| {
+      last + next.contents_utf8().unwrap()
+    });
 
-  let style = include_dir!("$CARGO_MANIFEST_DIR/src/components/styles/").files().fold("".to_owned(), |last: String, next: &File| last + next.contents_utf8().unwrap());
+  let client = cx.use_hook(|| cx.consume_context::<Arc<Mutex<GameClient<Channel>>>>());
 
-  let future = use_future(&cx, (),|_| async move {
-    let client = get_client();
-
-    if client.is_none() {
-        return false;
-    }
-
-    let mut client = client.unwrap().join(Request::new(JoinRequest {  })).await.unwrap().into_inner();
-
-    while let Some(cli) =  client.message().await.unwrap() {
-      utils::set_uuid(&cli.uuid)
-    };
-
-    return true
-  });
-
-  println!("{:?}", future.value());
-
-  match future.value() {
-    Some(true) => cx.render(rsx!(
-      div {
-        class: "main-container",
-        style {"{style}"}
-        TicBoard {}
-        // ChessBoard {side: helpers::chesstactoe::Color::White}
-      }
-    )),
-    Some(false) => cx.render(rsx!(
+  match client.is_none() {
+    true => cx.render(rsx!(
       div {
         "Something went to shit"
       }
     )),
-    None => cx.render(rsx!(
-      div {
-        "Loading shit in main"
+    false => {
+      let client = client.clone().unwrap();
+
+      let future = use_future(&cx, (), |_| async move {
+        let mut client = client
+          .lock()
+          .await
+          .join(Request::new(JoinRequest {}))
+          .await
+          .unwrap()
+          .into_inner();
+
+        while let Some(cli) = client.message().await.unwrap() {
+          utils::set_uuid(&cli.uuid)
+        }
+      });
+
+      match future.value() {
+        Some(()) => {
+          cx.render(rsx!(
+            div {
+              class: "main-container",
+              style {"{style}"}
+              TicBoard {}
+              // ChessBoard {side: helpers::chesstactoe::Color::White}
+            }
+          ))
+        }
+        None => cx.render(rsx!("Waiting for opponent")),
       }
-    )),
-}
-  
+    }
+  }
 }
