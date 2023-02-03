@@ -11,11 +11,11 @@ prost = "0.11.0"
 regex = "1.6.0"
 tokio = {version = "1.21.0", features = ["rt-multi-thread", "macros"]}
 tokio-stream = "0.1.9"
-tonic = "0.8.1"
+tonic = "0.8.3"
 uuid = {version = "1.1.2", features = ["v4"]}
 helpers = { path = "../helpers"}
 dashmap = "5.4.0"
 parking_lot = "0.12.1"
 
 [build-dependencies]
-tonic-build = "0.8.0"
+tonic-build = "0.8.4"

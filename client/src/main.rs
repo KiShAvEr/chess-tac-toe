@@ -1,19 +1,17 @@
 #![allow(non_snake_case)]
 
-use std::{future::Future, sync::Arc, time::Duration};
+use std::sync::Arc;
 
 use dioxus::prelude::*;
 use dioxus_router::{Route, Router};
-use helpers::chesstactoe::{game_client::GameClient, JoinRequest};
+use helpers::chesstactoe::game_client::GameClient;
 use pages::MainScreen::MainScreen;
 use tokio::sync::Mutex;
-use tonic::{Request, Status};
-use utils::set_uuid;
 
 mod components;
 mod pages;
 
-const url: &str = "http://localhost:50051";
+const URL: &str = "http://localhost:50051";
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -22,7 +20,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn app(cx: Scope) -> Element {
-  let client = use_future(cx, (), |_| async move { GameClient::connect(url).await });
+  let client = use_future(cx, (), |_| async move { GameClient::connect(URL).await });
 
   match client.value() {
     Some(client) => match client {
@@ -35,7 +33,7 @@ fn app(cx: Scope) -> Element {
             }
         })
       }
-      Err(err) => cx.render(rsx!("Server not found (probably)")),
+      Err(_err) => cx.render(rsx!("Server not found (probably)")),
     },
     None => cx.render(rsx!("Still connecting")),
   }

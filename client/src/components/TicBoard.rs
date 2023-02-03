@@ -1,16 +1,15 @@
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
 
-use dioxus::{html::style, prelude::*};
-use dioxus_desktop::{tao::window::Window, use_window};
+use dioxus::prelude::*;
 use dioxus_free_icons::{icons::io_icons::IoArrowBack, Icon};
-use dioxus_router::Link;
+
 use helpers::{
   chesstactoe::{chess::EndResult, game_client::GameClient, Color, SubscribeBoardRequest},
   TicTacToe,
 };
 use tokio::sync::Mutex;
 use tonic::transport::Channel;
-use utils::set_uuid;
+
 
 use crate::components::ChessBoard::ChessBoard;
 
@@ -45,7 +44,7 @@ pub fn TicBoard(cx: Scope) -> Element {
         .into_inner();
 
       while let Ok(Some(msg)) = res.message().await {
-        println!("{msg:?}");
+        // println!("{msg:?}");
 
         set_board(Some(TicTacToe::from(msg.game.as_ref().unwrap().clone())));
         set_side(msg.color);

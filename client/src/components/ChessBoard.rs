@@ -1,38 +1,37 @@
-use std::{any::Any, collections::HashMap, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 use dioxus::prelude::*;
+use futures::stream::StreamExt;
 use helpers::{
   chesstactoe::{game_client::GameClient, Color, MovePieceRequest},
-  ChessBoard, Piece, PieceName,
+  ChessBoard, PieceName,
 };
 use include_dir::{include_dir, Dir};
 use once_cell::sync::Lazy;
 use tokio::sync::Mutex;
-use tonic::{client, transport::Channel};
+use tonic::transport::Channel;
 
-async fn on_piece_click(
+fn on_piece_click(
   ev: MouseEvent,
   square: (usize, usize),
   selected: &UseState<Option<(usize, usize)>>,
   chess: &ChessBoard,
-  board_num: u32,
   side: Color,
-  client: Arc<Mutex<GameClient<Channel>>>,
+  ct: &Coroutine<String>,
 ) {
   if selected.is_none() {
     selected.modify(|_| Some(square))
   }
-  on_click(ev, square, selected, chess, board_num, side, client).await;
+  on_click(ev, square, selected, chess, side, ct);
 }
 
-async fn on_click(
+fn on_click(
   ev: MouseEvent,
   square: (usize, usize),
   selected: &UseState<Option<(usize, usize)>>,
   chess: &ChessBoard,
-  board_num: u32,
   side: Color,
-  client: Arc<Mutex<GameClient<Channel>>>,
+  ct: &Coroutine<String>,
 ) {
   if selected.is_none() {
     return;
@@ -57,7 +56,7 @@ async fn on_click(
   let end_tile = ChessBoard::get_tile(square).unwrap();
   let start_tile = ChessBoard::get_tile(selected.unwrap()).unwrap();
 
-  eprintln!("{piece_name}{start_tile}{x}{end_tile}");
+  // eprintln!("{piece_name}{start_tile}{x}{end_tile}");
 
   let mut alg = format!("{piece_name}{start_tile}{x}{end_tile}");
 
@@ -79,21 +78,18 @@ async fn on_click(
     alg += "K"
   }
 
-  eprintln!("{:?}, {:?}, {alg}", side, square);
+  // eprintln!("{:?}, {:?}, {alg}", side, square);
 
   let is_valid = chess.validate_move(&alg, side);
 
   if is_valid.is_ok() && is_valid.unwrap() {
-    let res = client
-      .lock()
-      .await
-      .move_piece(MovePieceRequest {
-        board: board_num,
-        alg,
-        uuid: utils::get_uuid().unwrap(),
-      })
-      .await;
-    println!("{res:?}");
+    unsafe {
+      static mut count: usize = 0;
+      count += 1;
+      println!("{count}");
+    }
+
+    ct.send(alg);
   }
 
   selected.modify(|_| None)
@@ -231,12 +227,30 @@ pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
     ""
   };
 
+  let board_num = cx.props.board_num.clone();
+
+  let ct: &Coroutine<String> = use_coroutine(&cx, |mut rx: UnboundedReceiver<String>| async move {
+
+    while let Some(alg) = rx.next().await {
+      let res = client
+        .lock()
+        .await
+        .move_piece(MovePieceRequest {
+          board: board_num,
+          alg,
+          uuid: utils::get_uuid().unwrap(),
+        })
+        .await;
+
+      println!("{res:?}")
+    }
+  });
+
   cx.render(rsx!{
     div {
         class: "chess-container",
             board.iter().enumerate().map(|(col_idx, col)| {
                 let map = IMAGES.clone();
-                let client = client.clone();
                 rsx!(
                     div {
                         class: "chess-col",
@@ -308,7 +322,6 @@ pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
                                 valid_move,
                                 if is_last_board && is_last_move {"last"} else {""}
                             );
-                            let client = client.clone();
                             if piece != "" {
                                 let src = map.get(&piece).unwrap().to_owned();
                                 return rsx!(
@@ -316,7 +329,7 @@ pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
                                         class: "{class}",
                                         onclick: move |ev| { if let Some(onclick) = cx.props.onclick.as_ref() {
                                             onclick.call(ev.clone());
-                                            }; let selected: UseState<Option<(usize, usize)>> = selected.clone(); let client = client.clone(); let chess = cx.props.chess.clone();let board_num = cx.props.board_num.clone();let side = cx.props.side.clone(); cx.spawn(async move {on_piece_click(ev, (real_col, real_row), &selected, &chess, board_num, side, client).await})},
+                                            }; on_piece_click(ev, (real_col, real_row), &selected, cx.props.chess, cx.props.side, ct)},
                                         img {
                                             src: "{src}",
                                             height: "100%",
@@ -329,9 +342,9 @@ pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
                                 return rsx!(
                                     div {
                                         class: "{class}", 
-                                        onclick: move |ev| {let selected: UseState<Option<(usize, usize)>> = selected.clone();let chess = cx.props.chess.clone();let board_num = cx.props.board_num.clone();let side = cx.props.side.clone(); if let Some(onclick) = cx.props.onclick.as_ref() {
+                                        onclick: move |ev| {if let Some(onclick) = cx.props.onclick.as_ref() {
                                             onclick.call(ev.clone());
-                                        }; let client = client.clone() ; cx.spawn(async move {on_click(ev, (real_col, real_row), &selected, &chess, board_num, side, client).await})},
+                                        }; on_click(ev, (real_col, real_row), &selected, &cx.props.chess, cx.props.side, ct)},
                                     }
                                 )
                             }

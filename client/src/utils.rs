@@ -1,8 +1,4 @@
-use helpers::chesstactoe::game_client::GameClient;
 use std::sync::RwLock;
-use tonic::transport::Channel;
-
-static CLIENT: RwLock<Option<GameClient<Channel>>> = RwLock::new(None);
 
 static UUID: RwLock<Option<String>> = RwLock::new(None);
 
