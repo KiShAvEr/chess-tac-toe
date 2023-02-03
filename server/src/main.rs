@@ -85,6 +85,7 @@ impl Game for GameService {
     );
 
     if color != game.game.next {
+      println!("faszom2");
       return Err(Status::permission_denied("You're not next"));
     }
 
@@ -144,9 +145,9 @@ impl Game for GameService {
     request: Request<JoinRequest>,
   ) -> Result<Response<Self::JoinStream>, Status> {
     let uuid = Uuid::new_v4();
+    let mut q = self.q.lock().await;
 
-    if (!self.q.lock().await.is_empty()) {
-      let mut q = self.q.lock().await;
+    if (!q.is_empty()) {
       let white = q.remove(0);
       let game: Ongoing = Ongoing {
         white: white.0,
@@ -162,8 +163,6 @@ impl Game for GameService {
 
       self.game_ids.insert(white.0, game_uuid);
 
-      println!("{:?}", white.1);
-
       white
         .1
         .send(Ok(JoinResponse {
@@ -171,10 +170,7 @@ impl Game for GameService {
           uuid: white.0.to_string(),
         }))
         .await
-        .unwrap_or_else(|a| {
-          println!("{}", a);
-          ()
-        });
+        .unwrap_or_else(|a| ());
 
       let (mut tx, rx) = mpsc::channel(4);
 
@@ -194,7 +190,9 @@ impl Game for GameService {
 
     let (mut tx, rx) = mpsc::channel(4);
 
-    self.q.lock().await.push((uuid, tx.clone()));
+    q.push((uuid, tx.clone()));
+
+    drop(q);
 
     tx.send(Ok(JoinResponse {
       status: GameStatus::NotReady as i32,
@@ -202,8 +200,6 @@ impl Game for GameService {
     }))
     .await
     .unwrap();
-
-    println!("picsa");
 
     return Ok(Response::new(ReceiverStream::new(rx)));
   }
