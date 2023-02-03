@@ -664,9 +664,13 @@ impl ChessBoard {
             }
           };
 
-          valid = diagonal_move && (self.board[end_coords.0][end_coords.1] != None || en_passant)
-        } else if (double || single) && starting_coords.1 == end_coords.1 {
-          valid = self.board[end_coords.0][end_coords.1] == None || en_passant
+          valid = diagonal_move && (self.board[end_coords.0][end_coords.1] != None || en_passant);
+        } else if single && starting_coords.1 == end_coords.1 {
+          valid = self.board[end_coords.0][end_coords.1] == None;
+        } else if double && starting_coords.1 == end_coords.1 {
+          valid = self.board[end_coords.0][end_coords.1] == None
+            && ((next == Color::Black && self.board[5][starting_coords.1] == None)
+              || (next == Color::White && self.board[2][starting_coords.1] == None));
         }
 
         if end_coords.0 == 0 || end_coords.0 == 7 {
@@ -1193,13 +1197,12 @@ impl ChessBoard {
       .iter()
       .filter(|fen| {
         let checked = fen.split(" ").next().unwrap();
-        println!("{checked}, {curr_fen}");
         checked == curr_fen
       })
       .count();
 
     if (count >= 2) {
-      self.end = EndResult::Draw(true)
+      // self.end = EndResult::Draw(true)
     }
 
     self.past.push(binding);
