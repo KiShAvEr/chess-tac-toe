@@ -20,7 +20,6 @@ pub mod tests {
       res_fen
     );
   }
-
   #[test]
   fn kasparov_karpov() {
     let moves: Vec<(&str, &str)> = include_str!("Kasparov_Karpov.txt")
@@ -113,6 +112,22 @@ pub mod tests {
         .unwrap();
 
     let chers_move = "Qd1a1";
+
+    // println!("{:?}", tic.make_move((0, 0), chers_move));
+
+    assert!(
+      tic.validate_move((0, 0), chers_move).is_err()
+        || !tic.validate_move((0, 0), chers_move).unwrap()
+    );
+  }
+
+  #[test]
+  fn pawn_bug() {
+    let mut tic = TicTacToe::default();
+    tic.chesses[0][0] =
+      ChessBoard::parse_fen("rnbqkbnr/pppppppp/8/8/8/Q7/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap();
+
+    let chers_move = "a2a4";
 
     // println!("{:?}", tic.make_move((0, 0), chers_move));
 
