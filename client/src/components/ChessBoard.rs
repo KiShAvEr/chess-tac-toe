@@ -231,19 +231,22 @@ pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
 
   let ct: &Coroutine<String> = use_coroutine(&cx, |mut rx: UnboundedReceiver<String>| async move {
 
-    while let Some(alg) = rx.next().await {
-      let res = client
-        .lock()
-        .await
-        .move_piece(MovePieceRequest {
-          board: board_num,
-          alg,
-          uuid: utils::get_uuid().unwrap(),
-        })
-        .await;
+    tokio::spawn(async move {
+      while let Some(alg) = rx.next().await {
+        let res = client
+          .lock()
+          .await
+          .move_piece(MovePieceRequest {
+            board: board_num,
+            alg,
+            uuid: utils::get_uuid().unwrap(),
+          })
+          .await;
+  
+        println!("{res:?}");
+      }
+    }).await.unwrap();
 
-      println!("{res:?}")
-    }
   });
 
   cx.render(rsx!{
