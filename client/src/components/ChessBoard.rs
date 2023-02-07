@@ -26,7 +26,7 @@ fn on_piece_click(
 }
 
 fn on_click(
-  ev: MouseEvent,
+  _ev: MouseEvent,
   square: (usize, usize),
   selected: &UseState<Option<(usize, usize)>>,
   chess: &ChessBoard,
@@ -166,7 +166,7 @@ pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
   let mut board = cx.props.chess.board;
 
   static IMAGES: Lazy<HashMap<String, String>> = Lazy::new(|| {
-    static DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/src/assets");
+    static DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/src/assets/pieces");
 
     let mut inmages = HashMap::new();
 
