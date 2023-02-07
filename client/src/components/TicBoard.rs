@@ -7,6 +7,7 @@ use helpers::{
   chesstactoe::{chess::EndResult, game_client::GameClient, Color, SubscribeBoardRequest},
   TicTacToe,
 };
+use once_cell::sync::Lazy;
 use tokio::sync::Mutex;
 use tonic::transport::Channel;
 
@@ -56,6 +57,9 @@ pub fn TicBoard(cx: Scope) -> Element {
 
   let selected_board = use_state(cx, || None::<usize>);
 
+  static o: Lazy<String> = Lazy::new(|| base64::encode(include_bytes!("../assets/Blue_O.svg")));
+  static x: Lazy<String> = Lazy::new(|| base64::encode(include_bytes!("../assets/Red_X.svg")));
+
   match board.get() {
     Some(board) => match selected_board.get() {
         Some(board_num) => cx.render(rsx!{
@@ -77,15 +81,36 @@ pub fn TicBoard(cx: Scope) -> Element {
           div {
             class: "tic-container",
             (0..3).map(|col| {
+              let o_src = o.clone();
+              let x_src = x.clone();
               rsx!{
                 div {
                   class: "tic-col",
                   (0..3).map(|row| {
-                    let class = format!("tic-cell {} {}", if (col+row)%2 == 1 {"light"} else {"dark"}, if &board.chesses[col][row].end != &EndResult::None(true) {"over"} else {""});
+                    let class = format!("tic-cell {}", if (col+row)%2 == 1 {"light"} else {"dark"});
+                    let chess_board = rsx!(ChessBoard {last: Color::from_i32(1-**next).unwrap(), onclick: move |_| {selected_board.set(Some(col*3+row))}, side: Color::from_i32(**side).unwrap(), chess: &board.chesses[col][row], board_num: (col*3+row).try_into().unwrap(), last_move: (*last_move).to_string()});
+                    let o_src = format!(
+                      "data:image/svg+xml;base64, {}",
+                      o_src.clone()
+                    );
+                    let x_src = format!(
+                      "data:image/svg+xml;base64, {}",
+                      x_src.clone()
+                    );
+                    let child = match &board.chesses[col][row].end {
+                      EndResult::Color(color) => {
+                        match Color::from_i32(*color).unwrap() {
+                          Color::White => rsx!(img { src: "{x_src}" }),
+                          Color::Black => rsx!(img { src: "{o_src}" })
+                        }
+                      },
+                      EndResult::Draw(_) => chess_board,
+                      EndResult::None(_) => chess_board,
+                    };
                     rsx!{
                       div {
                         class: "{class}",
-                        ChessBoard {last: Color::from_i32(1-**next).unwrap(), onclick: move |_| {selected_board.set(Some(col*3+row))}, side: Color::from_i32(**side).unwrap(), chess: &board.chesses[col][row], board_num: (col*3+row).try_into().unwrap(), last_move: (*last_move).to_string()}
+                        child
                       }
                     }
                   })

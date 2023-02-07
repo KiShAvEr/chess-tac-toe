@@ -52,5 +52,5 @@
 }
 
 .tic-cell.over {
-  content: "X";
+  opacity: 0.5;
 }
