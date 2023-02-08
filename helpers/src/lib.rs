@@ -40,7 +40,7 @@ impl std::error::Error for FenError {}
 
 impl Display for FenError {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "{:?}", self)
+    write!(f, "{self:?}")
   }
 }
 
@@ -53,7 +53,7 @@ pub enum MoveError {
 
 impl Display for MoveError {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "{:?}", self)
+    write!(f, "{self:?}")
   }
 }
 
@@ -67,7 +67,7 @@ pub enum ChessError {
 
 impl Display for ChessError {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "{:?}", self)
+    write!(f, "{self:?}")
   }
 }
 
@@ -87,7 +87,7 @@ pub enum TicError {
 
 impl Display for TicError {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    write!(f, "{:?}", self)
+    write!(f, "{self:?}")
   }
 }
 
@@ -99,7 +99,7 @@ impl TicTacToe {
     board: (usize, usize),
     alg: &str,
   ) -> Result<bool, Box<dyn std::error::Error>> {
-    Ok(self.get_board(board)?.validate_move(alg, self.next)?)
+    self.get_board(board)?.validate_move(alg, self.next)
   }
 
   pub fn make_move(
@@ -127,8 +127,8 @@ impl TicTacToe {
 
     for boards in &self.chesses {
       for board in boards {
-        res.extend(board.to_fen(self.next)?.chars());
-        res.extend("\\".chars());
+        res.push_str(&board.to_fen(self.next)?);
+        res.push('\\');
       }
     }
 
@@ -141,11 +141,11 @@ impl TicTacToe {
         "b"
       });
 
-    return Ok(res);
+    Ok(res)
   }
 
   pub fn from_fen(input: &str) -> Result<Self, FenError> {
-    let mut parts = input.split("+");
+    let mut parts = input.split('+');
 
     if (parts.clone().count() != 2) {
       return Err(FenError::InvalidFormat);
@@ -153,7 +153,7 @@ impl TicTacToe {
 
     let boards_part = parts.next().unwrap();
 
-    let mut boards = boards_part.split(r#"\"#);
+    let mut boards = boards_part.split('\\');
 
     if (boards.clone().count() != 9) {
       return Err(FenError::InvalidFormat);
@@ -228,7 +228,7 @@ impl From<chesstactoe::TicTacToe> for TicTacToe {
     }
 
     TicTacToe {
-      chesses: chesses,
+      chesses,
       next: value.next(),
     }
   }
@@ -249,7 +249,7 @@ impl Eq for EndResult {}
 
 impl Default for ChessBoard {
   fn default() -> Self {
-    return Self::parse_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap();
+    Self::parse_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap()
   }
 }
 
@@ -268,18 +268,18 @@ impl ChessBoard {
       board += &(rand + "/")
     }
     board = board[..board.len() - 1].to_string();
-    return Self::parse_fen(&format!("{} w KQkq - 0 1", board)).unwrap();
+    return Self::parse_fen(&format!("{board} w KQkq - 0 1")).unwrap();
   }
 
   pub fn parse_fen(fen: &str) -> Result<ChessBoard, FenError> {
-    let mut parts = fen.split(" ");
+    let mut parts = fen.split(' ');
     if parts.clone().count() != 6 {
       return Err(FenError::InvalidFormat);
     }
 
     let board_part = parts.next().unwrap();
 
-    let board_parts = board_part.split("/");
+    let board_parts = board_part.split('/');
 
     if board_parts.clone().count() != 8 {
       return Err(FenError::InvalidFormat);
@@ -290,10 +290,10 @@ impl ChessBoard {
     for (index, part) in board_parts.enumerate() {
       let mut row = vec![];
       for j in part.chars() {
-        if j.is_digit(10) {
+        if j.is_ascii_digit() {
           row.extend(vec![None; (j.to_digit(10).unwrap() as usize)]);
         } else {
-          match &*j.clone().to_lowercase().to_string() {
+          match &*j.to_lowercase().to_string() {
             "r" => row.push(Some(Piece {
               name: PieceName::ROOK,
               color: if j.is_uppercase() {
@@ -369,16 +369,16 @@ impl ChessBoard {
       ((Color::White, Castling::QUEENSIDE), false),
     ]);
 
-    if (castle_part.contains("K")) {
+    if (castle_part.contains('K')) {
       castling.insert((Color::White, Castling::KINGSIDE), true);
     }
-    if (castle_part.contains("Q")) {
+    if (castle_part.contains('Q')) {
       castling.insert((Color::White, Castling::QUEENSIDE), true);
     }
-    if (castle_part.contains("k")) {
+    if (castle_part.contains('k')) {
       castling.insert((Color::Black, Castling::KINGSIDE), true);
     }
-    if (castle_part.contains("q")) {
+    if (castle_part.contains('q')) {
       castling.insert((Color::Black, Castling::QUEENSIDE), true);
     }
 
@@ -457,7 +457,7 @@ impl ChessBoard {
       return Err(FenError::InvalidSquare);
     }
 
-    return Ok(chars[square.1].to_string() + &(square.0 + 1).to_string());
+    Ok(chars[square.1].to_string() + &(square.0 + 1).to_string())
   }
 
   pub fn get_data_from_move(
@@ -481,7 +481,7 @@ impl ChessBoard {
     let end_square = &regex.captures_iter(move_string).last().unwrap()[0];
     let end_coords = ChessBoard::get_square(end_square)?;
 
-    return Ok((starting_coords, end_coords, name));
+    Ok((starting_coords, end_coords, name))
   }
 
   //TODO test
@@ -544,13 +544,9 @@ impl ChessBoard {
           == Some(Piece {
             color: next,
             name: PieceName::KING,
-          }))
-      {
-        if (between_squares
+          })) && (between_squares
           .iter()
-          .all(|square| self.board[square.0][square.1] == None))
-        {
-          if (!self.is_checked(&next)
+          .all(|square| self.board[square.0][square.1].is_none())) && (!self.is_checked(&next)
             && between_squares.iter().all(|square| {
               let mut fake_board = self.clone();
               let coords = king_square;
@@ -562,11 +558,8 @@ impl ChessBoard {
               });
 
               !fake_board.is_checked(&next)
-            }))
-          {
-            return Ok(true);
-          }
-        }
+            })) {
+        return Ok(true);
       }
       return Ok(false);
     }
@@ -578,8 +571,8 @@ impl ChessBoard {
       name: piece_name,
     };
 
-    if (!move_string.contains("x")) {
-      if (self.board[end_coords.0][end_coords.1] != None) {
+    if (!move_string.contains('x')) {
+      if self.board[end_coords.0][end_coords.1].is_some() {
         return Ok(false);
       }
     } else {
@@ -590,7 +583,7 @@ impl ChessBoard {
       }
     }
 
-    if (self.board[starting_coords.0][starting_coords.1] == None
+    if (self.board[starting_coords.0][starting_coords.1].is_none()
       || self.board[starting_coords.0][starting_coords.1].unwrap() != piece)
     {
       return Ok(false);
@@ -652,7 +645,7 @@ impl ChessBoard {
 
         let mut valid = false;
 
-        if move_string.contains("x") {
+        if move_string.contains('x') {
           let diagonal_move = match next {
             Color::Black => {
               starting_coords.0.saturating_sub(end_coords.0) == 1
@@ -664,13 +657,13 @@ impl ChessBoard {
             }
           };
 
-          valid = diagonal_move && (self.board[end_coords.0][end_coords.1] != None || en_passant);
+          valid = diagonal_move && (self.board[end_coords.0][end_coords.1].is_some() || en_passant);
         } else if single && starting_coords.1 == end_coords.1 {
-          valid = self.board[end_coords.0][end_coords.1] == None;
+          valid = self.board[end_coords.0][end_coords.1].is_none();
         } else if double && starting_coords.1 == end_coords.1 {
-          valid = self.board[end_coords.0][end_coords.1] == None
-            && ((next == Color::Black && self.board[5][starting_coords.1] == None)
-              || (next == Color::White && self.board[2][starting_coords.1] == None));
+          valid = self.board[end_coords.0][end_coords.1].is_none()
+            && ((next == Color::Black && self.board[5][starting_coords.1].is_none())
+              || (next == Color::White && self.board[2][starting_coords.1].is_none()));
         }
 
         if end_coords.0 == 0 || end_coords.0 == 7 {
@@ -698,7 +691,7 @@ impl ChessBoard {
   ) -> bool {
     let mut fake_board = self.clone();
     fake_board.make_move(alg, next);
-    return !fake_board.is_checked(&next);
+    !fake_board.is_checked(&next)
   }
 
   fn is_checked(&self, color: &Color) -> bool {
@@ -731,7 +724,7 @@ impl ChessBoard {
       for &(dx, dy) in &directions {
         let mut x = king_position.0 as i8 + dx;
         let mut y = king_position.1 as i8 + dy;
-        while x >= 0 && x < 8 && y >= 0 && y < 8 {
+        while (0..8).contains(&x) && (0..8).contains(&y) {
           let piece = board[x as usize][y as usize];
           if let Some(other_piece) = piece {
             if other_piece.color != *color {
@@ -772,10 +765,8 @@ impl ChessBoard {
         loop {
           match piece {
             Some(other_piece) => {
-              if other_piece.color != *color {
-                if other_piece.name == PieceName::ROOK || other_piece.name == PieceName::QUEEN {
-                  return false;
-                }
+              if other_piece.color != *color && (other_piece.name == PieceName::ROOK || other_piece.name == PieceName::QUEEN) {
+                return false;
               }
               break;
             }
@@ -822,7 +813,7 @@ impl ChessBoard {
         let col = (king_position.1 as isize) + col_offset;
 
         // Make sure the position is within the bounds of the board
-        if row < 0 || row > 7 || col < 0 || col > 7 {
+        if !(0..=7).contains(&row) || !(0..=7).contains(&col) {
           continue;
         }
 
@@ -844,7 +835,7 @@ impl ChessBoard {
 
     let paci = check_the_knights(&self.board, color, king_position);
 
-    return !diag || !lat || !paci;
+    !diag || !lat || !paci
   }
 
   fn validate_bishop(
@@ -875,7 +866,7 @@ impl ChessBoard {
     let mut row = starting_coords.0 as i32 + row_dir;
     let mut col = starting_coords.1 as i32 + col_dir;
     while row != end_coords.0 as i32 && col != end_coords.1 as i32 {
-      if let Some(_) = board[row as usize][col as usize] {
+      if board[row as usize][col as usize].is_some() {
         return false;
       }
       row += row_dir;
@@ -903,18 +894,16 @@ impl ChessBoard {
       };
       for i in min + 1..max {
         if starting_coords.0 == end_coords.0 {
-          if board[starting_coords.0][i] != None {
+          if board[starting_coords.0][i].is_some() {
             return false;
           }
-        } else {
-          if board[i][starting_coords.1] != None {
-            return false;
-          }
+        } else if board[i][starting_coords.1].is_some() {
+          return false;
         }
       }
       return true;
     }
-    return false;
+    false
   }
 
   pub fn to_fen(&self, next: Color) -> Result<String, FenError> {
@@ -1033,7 +1022,7 @@ impl ChessBoard {
 
     output += &self.fullmove.to_string();
 
-    return Ok(output);
+    Ok(output)
   }
 
   pub fn make_move(&mut self, alg: &str, next: Color) -> Result<(), Box<dyn std::error::Error>> {
@@ -1096,7 +1085,7 @@ impl ChessBoard {
     }
 
     let (starting_coords, end_coords, piece_name) =
-      Self::get_data_from_move(alg).map_err(|e| ChessError::FenError(e))?;
+      Self::get_data_from_move(alg).map_err(ChessError::FenError)?;
 
     let piece = Piece {
       color: next,
@@ -1160,7 +1149,7 @@ impl ChessBoard {
       self.en_passant = None;
     }
 
-    if (piece.name == PieceName::PAWN || alg.contains("x")) {
+    if (piece.name == PieceName::PAWN || alg.contains('x')) {
       self.halfmove = 0;
     } else {
       self.halfmove += 1;
@@ -1190,19 +1179,19 @@ impl ChessBoard {
     }
 
     let binding = self.to_fen(next).unwrap();
-    let curr_fen = binding.split(" ").next().unwrap();
+    let curr_fen = binding.split(' ').next().unwrap();
 
     let count = self
       .past
       .iter()
       .filter(|fen| {
-        let checked = fen.split(" ").next().unwrap();
+        let checked = fen.split(' ').next().unwrap();
         checked == curr_fen
       })
       .count();
 
     if (count >= 2) {
-      // self.end = EndResult::Draw(true)
+      self.end = EndResult::Draw(true)
     }
 
     self.past.push(binding);

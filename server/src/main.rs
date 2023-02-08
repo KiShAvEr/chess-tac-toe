@@ -170,7 +170,7 @@ impl Game for GameService {
           uuid: white.0.to_string(),
         }))
         .await
-        .unwrap_or_else(|a| ());
+        .unwrap_or(());
 
       let (mut tx, rx) = mpsc::channel(4);
 
@@ -225,7 +225,7 @@ impl Game for GameService {
 
     let game = self
       .games
-      .get(&self.game_ids.get(&asker).unwrap().value())
+      .get(self.game_ids.get(&asker).unwrap().value())
       .unwrap();
 
     let game = game.value();
@@ -268,7 +268,7 @@ impl Game for GameService {
       Uuid::parse_str(&request.uuid).map_err(|_| Status::invalid_argument("Invalid UUID"))?;
 
     if let Some(game_id) = self.game_ids.get(&uuid) {
-      if let Some(game) = self.games.get(&game_id.value()) {}
+      if let Some(game) = self.games.get(game_id.value()) {}
     }
 
     return Err(Status::permission_denied("User is not in a game"));

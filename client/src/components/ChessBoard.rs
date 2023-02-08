@@ -1,5 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
+use base64::Engine;
 use dioxus::prelude::*;
 use futures::stream::StreamExt;
 use helpers::{
@@ -72,7 +73,7 @@ fn on_click(
     alg = "O-O-O".to_owned()
   }
 
-  if piece_name == ""
+  if piece_name.is_empty()
     && ((side == Color::White && square.0 == 7) || (side == Color::Black && square.0 == 0))
   {
     alg += "K"
@@ -177,7 +178,7 @@ pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
           .to_string(),
         format!(
           "data:image/svg+xml;base64, {}",
-          base64::encode(file.contents())
+          base64::engine::general_purpose::STANDARD.encode(file.contents())
         ),
       );
     });
@@ -185,7 +186,7 @@ pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
     inmages
   });
 
-  let mut split_move = cx.props.last_move.split(" ");
+  let mut split_move = cx.props.last_move.split(' ');
 
   let (last_board, last_move) = (split_move.next(), split_move.next());
 
@@ -202,7 +203,7 @@ pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
     }
   }
 
-  let selected = use_state(&cx, || None::<(usize, usize)>);
+  let selected = use_state(cx, || None::<(usize, usize)>);
 
   let piece_name = if selected.is_some() {
     let selected = selected.get().unwrap();
@@ -227,9 +228,9 @@ pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
     ""
   };
 
-  let board_num = cx.props.board_num.clone();
+  let board_num = cx.props.board_num;
 
-  let ct: &Coroutine<String> = use_coroutine(&cx, |mut rx: UnboundedReceiver<String>| async move {
+  let ct: &Coroutine<String> = use_coroutine(cx, |mut rx: UnboundedReceiver<String>| async move {
 
     tokio::spawn(async move {
       while let Some(alg) = rx.next().await {
@@ -264,7 +265,7 @@ pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
                             };
                             let real_col = if cx.props.side == Color::White {7-col_idx} else {col_idx};
                             let real_row = if cx.props.side == Color::White {cell_idx} else {7-cell_idx};
-                            let valid_move = if selected.is_some() && VALID_MOVES.get(if piece_name == "" {"P"} else {piece_name}).unwrap().iter().any(|la_move| {
+                            let valid_move = if selected.is_some() && VALID_MOVES.get(if piece_name.is_empty() {"P"} else {piece_name}).unwrap().iter().any(|la_move| {
                                 let square = selected.unwrap();
                                 square.0.saturating_add_signed(la_move.0) == real_col && square.1.saturating_add_signed(la_move.1) == real_row
                             }) {
@@ -325,14 +326,14 @@ pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
                                 valid_move,
                                 if is_last_board && is_last_move {"last"} else {""}
                             );
-                            if piece != "" {
+                            if !piece.is_empty() {
                                 let src = map.get(&piece).unwrap().to_owned();
                                 return rsx!(
                                     div {
                                         class: "{class}",
                                         onclick: move |ev| { if let Some(onclick) = cx.props.onclick.as_ref() {
                                             onclick.call(ev.clone());
-                                            }; on_piece_click(ev, (real_col, real_row), &selected, cx.props.chess, cx.props.side, ct)},
+                                            }; on_piece_click(ev, (real_col, real_row), selected, cx.props.chess, cx.props.side, ct)},
                                         img {
                                             src: "{src}",
                                             height: "100%",
@@ -347,7 +348,7 @@ pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
                                         class: "{class}", 
                                         onclick: move |ev| {if let Some(onclick) = cx.props.onclick.as_ref() {
                                             onclick.call(ev.clone());
-                                        }; on_click(ev, (real_col, real_row), &selected, &cx.props.chess, cx.props.side, ct)},
+                                        }; on_click(ev, (real_col, real_row), selected, cx.props.chess, cx.props.side, ct)},
                                     }
                                 )
                             }

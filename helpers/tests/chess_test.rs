@@ -23,9 +23,9 @@ pub mod tests {
   #[test]
   fn kasparov_karpov() {
     let moves: Vec<(&str, &str)> = include_str!("Kasparov_Karpov.txt")
-      .split("\n")
+      .split('\n')
       .map(|line| {
-        let mut line = line.splitn(2, " ");
+        let mut line = line.splitn(2, ' ');
         (line.next().unwrap(), line.next().unwrap())
       })
       .collect();
@@ -40,9 +40,9 @@ pub mod tests {
   #[test]
   fn arg_carmined() {
     let moves: Vec<(&str, &str)> = include_str!("arg_carmined.txt")
-      .split("\n")
+      .split('\n')
       .map(|line| {
-        let mut line = line.splitn(2, " ");
+        let mut line = line.splitn(2, ' ');
         (line.next().unwrap(), line.next().unwrap())
       })
       .collect();

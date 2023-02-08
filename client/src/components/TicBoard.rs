@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use base64::Engine;
 use dioxus::prelude::*;
 use dioxus_free_icons::{icons::io_icons::IoArrowBack, Icon};
 
@@ -17,21 +18,21 @@ use crate::components::ChessBoard::ChessBoard;
 pub fn TicBoard(cx: Scope) -> Element {
   let client = cx.use_hook(|| cx.consume_context::<Arc<Mutex<GameClient<Channel>>>>());
 
-  let side = use_state(&cx, || Color::White as i32);
+  let side = use_state(cx, || Color::White as i32);
   let set_side = side.setter();
 
-  let board = use_state(&cx, || None);
+  let board = use_state(cx, || None);
   let set_board = board.setter();
 
-  let last_move = use_state(&cx, || "".to_owned());
+  let last_move = use_state(cx, || "".to_owned());
   let set_last_move = last_move.setter();
 
-  let next = use_state(&cx, || Color::White as i32);
+  let next = use_state(cx, || Color::White as i32);
   let set_next = next.setter();
 
   let client = client.clone();
 
-  use_future(&cx, (), |_| async move {
+  use_future(cx, (), |_| async move {
     if client.is_some() {
       let mut res = client
         .unwrap()
@@ -50,15 +51,15 @@ pub fn TicBoard(cx: Scope) -> Element {
         set_board(Some(TicTacToe::from(msg.game.as_ref().unwrap().clone())));
         set_side(msg.color);
         set_last_move(msg.game.as_ref().unwrap().last_move.clone());
-        set_next(msg.game.as_ref().unwrap().next.clone());
+        set_next(msg.game.as_ref().unwrap().next);
       }
     }
   });
 
   let selected_board = use_state(cx, || None::<usize>);
 
-  static o: Lazy<String> = Lazy::new(|| base64::encode(include_bytes!("../assets/Blue_O.svg")));
-  static x: Lazy<String> = Lazy::new(|| base64::encode(include_bytes!("../assets/Red_X.svg")));
+  static o: Lazy<String> = Lazy::new(|| base64::engine::general_purpose::STANDARD.encode(include_bytes!("../assets/Blue_O.svg")));
+  static x: Lazy<String> = Lazy::new(|| base64::engine::general_purpose::STANDARD.encode(include_bytes!("../assets/Red_X.svg")));
 
   match board.get() {
     Some(board) => match selected_board.get() {
