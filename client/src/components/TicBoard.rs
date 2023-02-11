@@ -101,17 +101,18 @@ pub fn TicBoard(cx: Scope) -> Element {
                     let child = match &board.chesses[col][row].end {
                       EndResult::Color(color) => {
                         match Color::from_i32(*color).unwrap() {
-                          Color::White => rsx!(img { src: "{x_src}" }),
-                          Color::Black => rsx!(img { src: "{o_src}" })
+                          Color::White => rsx!(img { class: "won_img", src: "{x_src}" }),
+                          Color::Black => rsx!(img { class: "won_img", src: "{o_src}" })
                         }
                       },
-                      EndResult::Draw(_) => chess_board,
-                      EndResult::None(_) => chess_board,
+                      EndResult::Draw(_) => rsx!(""),
+                      EndResult::None(_) => rsx!(""),
                     };
                     rsx!{
                       div {
                         class: "{class}",
-                        child
+                        child,
+                        chess_board
                       }
                     }
                   })

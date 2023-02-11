@@ -1,7 +1,5 @@
 .chess-container {
   display: flex;
-  max-height: 100%;
-  max-width: 100%;
   justify-content: start;
   flex-direction: column;
   aspect-ratio: 1;
@@ -18,8 +16,6 @@
 .chess-cell {
   flex: 1;
   border: 1px solid black;
-  height: auto;
-  width: auto;
   aspect-ratio: 1 !important;
   word-break: normal;
   font-size: 0.1%;

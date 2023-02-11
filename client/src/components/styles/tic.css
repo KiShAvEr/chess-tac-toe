@@ -1,11 +1,11 @@
 .tic-container {
   display: flex;
-  max-height: calc(100vmin - 5%);
-  max-width: calc(100vmin - 5%);
+  width: 96vmin;
+  height: 96vmin;
   justify-content: start;
   aspect-ratio: 1 !important;
   padding-bottom: 100%;
-  margin: 2.5%;
+  margin: 1vmin;
 }
 
 .tic-col {
@@ -13,9 +13,8 @@
   flex: 1;
   flex-direction: column;
   aspect-ratio: 1/8 !important;
-  padding-bottom: calc(1/8*100%);
-  max-width: calc(100%/3);
-  max-height: 100%;
+  width: calc(32vmin-1px);
+  height: 96vmin;
 }
 
 .tic-cell {
@@ -53,4 +52,11 @@
 
 .tic-cell.over {
   opacity: 0.5;
+}
+
+.won_img {
+  width: 32vmin;
+  height: 32vmin;
+  opacity: 0.8;
+  position: absolute;
 }
