@@ -11,7 +11,7 @@ use tokio::sync::Mutex;
 mod components;
 mod pages;
 
-const URL: &str = "http://192.168.0.106:50051";
+const URL: &str = "http://localhost:50051";
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

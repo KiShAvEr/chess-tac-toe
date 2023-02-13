@@ -238,7 +238,7 @@ impl From<chesstactoe::TicTacToe> for TicTacToe {
 pub struct ChessBoard {
   pub board: [[Option<Piece>; 8]; 8],
   castling: HashMap<(Color, Castling), bool>,
-  en_passant: Option<(usize, usize)>,
+  pub en_passant: Option<(usize, usize)>,
   halfmove: usize,
   fullmove: usize,
   pub end: EndResult,
@@ -544,21 +544,24 @@ impl ChessBoard {
           == Some(Piece {
             color: next,
             name: PieceName::KING,
-          })) && (between_squares
+          }))
+        && (between_squares
           .iter()
-          .all(|square| self.board[square.0][square.1].is_none())) && (!self.is_checked(&next)
-            && between_squares.iter().all(|square| {
-              let mut fake_board = self.clone();
-              let coords = king_square;
-              fake_board.board[coords.0][coords.1] = None;
+          .all(|square| self.board[square.0][square.1].is_none()))
+        && (!self.is_checked(&next)
+          && between_squares.iter().all(|square| {
+            let mut fake_board = self.clone();
+            let coords = king_square;
+            fake_board.board[coords.0][coords.1] = None;
 
-              fake_board.board[square.0][square.1] = Some(Piece {
-                color: next,
-                name: PieceName::KING,
-              });
+            fake_board.board[square.0][square.1] = Some(Piece {
+              color: next,
+              name: PieceName::KING,
+            });
 
-              !fake_board.is_checked(&next)
-            })) {
+            !fake_board.is_checked(&next)
+          }))
+      {
         return Ok(true);
       }
       return Ok(false);
@@ -765,7 +768,9 @@ impl ChessBoard {
         loop {
           match piece {
             Some(other_piece) => {
-              if other_piece.color != *color && (other_piece.name == PieceName::ROOK || other_piece.name == PieceName::QUEEN) {
+              if other_piece.color != *color
+                && (other_piece.name == PieceName::ROOK || other_piece.name == PieceName::QUEEN)
+              {
                 return false;
               }
               break;
@@ -1110,6 +1115,21 @@ impl ChessBoard {
       self.end = EndResult::Color(next as i32);
     }
 
+    let en_passant = match next {
+      Color::Black => self.en_passant == Some(end_coords),
+      Color::White => self.en_passant == Some(end_coords),
+    };
+
+    if piece.name == PieceName::PAWN && en_passant {
+      let dir: isize = match next {
+        Color::Black => 1,
+        Color::White => -1,
+      };
+
+      let faszom = self.board[end_coords.0.checked_add_signed(dir).unwrap()][end_coords.1];
+
+      self.board[end_coords.0.checked_add_signed(dir).unwrap()][end_coords.1] = None
+    }
     self.board[starting_coords.0][starting_coords.1] = None;
 
     self.board[end_coords.0][end_coords.1] = Some(piece);

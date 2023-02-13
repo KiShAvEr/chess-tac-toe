@@ -85,7 +85,6 @@ impl Game for GameService {
     );
 
     if color != game.game.next {
-      println!("faszom2");
       return Err(Status::permission_denied("You're not next"));
     }
 

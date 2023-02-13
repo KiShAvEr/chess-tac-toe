@@ -12,7 +12,6 @@ use once_cell::sync::Lazy;
 use tokio::sync::Mutex;
 use tonic::transport::Channel;
 
-
 use crate::components::ChessBoard::ChessBoard;
 
 pub fn TicBoard(cx: Scope) -> Element {
@@ -58,8 +57,12 @@ pub fn TicBoard(cx: Scope) -> Element {
 
   let selected_board = use_state(cx, || None::<usize>);
 
-  static o: Lazy<String> = Lazy::new(|| base64::engine::general_purpose::STANDARD.encode(include_bytes!("../assets/Blue_O.svg")));
-  static x: Lazy<String> = Lazy::new(|| base64::engine::general_purpose::STANDARD.encode(include_bytes!("../assets/Red_X.svg")));
+  static o: Lazy<String> = Lazy::new(|| {
+    base64::engine::general_purpose::STANDARD.encode(include_bytes!("../assets/Blue_O.svg"))
+  });
+  static x: Lazy<String> = Lazy::new(|| {
+    base64::engine::general_purpose::STANDARD.encode(include_bytes!("../assets/Red_X.svg"))
+  });
 
   match board.get() {
     Some(board) => match selected_board.get() {

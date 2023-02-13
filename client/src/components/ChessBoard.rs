@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use base64::Engine;
-use dioxus::prelude::*;
+use dioxus::{html::dialog, prelude::*};
 use futures::stream::StreamExt;
 use helpers::{
   chesstactoe::{game_client::GameClient, Color, MovePieceRequest},
@@ -19,11 +19,22 @@ fn on_piece_click(
   chess: &ChessBoard,
   side: Color,
   ct: &Coroutine<String>,
+  promotin: &UseState<bool>,
+  promotion_square: &UseState<Option<(usize, usize)>>,
 ) {
   if selected.is_none() {
     selected.modify(|_| Some(square))
   }
-  on_click(ev, square, selected, chess, side, ct);
+  on_click(
+    ev,
+    square,
+    selected,
+    chess,
+    side,
+    ct,
+    promotin,
+    promotion_square,
+  );
 }
 
 fn on_click(
@@ -33,15 +44,21 @@ fn on_click(
   chess: &ChessBoard,
   side: Color,
   ct: &Coroutine<String>,
+  promotin: &UseState<bool>,
+  promotion_square: &UseState<Option<(usize, usize)>>,
 ) {
   if selected.is_none() {
     return;
   }
+  promotin.set(false);
 
   let attacked_piece = chess.board[square.0][square.1];
   let selected_piece = chess.board[selected.unwrap().0][selected.unwrap().1];
   let x = match attacked_piece {
     Some(_) => "x",
+    None if selected_piece.unwrap().name == PieceName::PAWN && chess.en_passant == Some(square) => {
+      "x"
+    }
     None => "",
   };
 
@@ -57,7 +74,8 @@ fn on_click(
   let end_tile = ChessBoard::get_tile(square).unwrap();
   let start_tile = ChessBoard::get_tile(selected.unwrap()).unwrap();
 
-  // eprintln!("{piece_name}{start_tile}{x}{end_tile}");
+  eprintln!("{piece_name}{start_tile}{x}{end_tile}");
+  eprintln!("{:?}", chess.en_passant);
 
   let mut alg = format!("{piece_name}{start_tile}{x}{end_tile}");
 
@@ -76,7 +94,9 @@ fn on_click(
   if piece_name.is_empty()
     && ((side == Color::White && square.0 == 7) || (side == Color::Black && square.0 == 0))
   {
-    alg += "K"
+    promotin.set(true);
+    promotion_square.set(Some((square.0, square.1)));
+    return;
   }
 
   // eprintln!("{:?}, {:?}, {alg}", side, square);
@@ -94,6 +114,56 @@ fn on_click(
   }
 
   selected.modify(|_| None)
+}
+
+fn promote(
+  selected: &UseState<Option<(usize, usize)>>,
+  chess: &ChessBoard,
+  ct: &Coroutine<String>,
+  promotion_square: &UseState<Option<(usize, usize)>>,
+  promotin: &UseState<bool>,
+  target_piece: &String,
+) {
+  if promotion_square.is_none() {
+    panic!("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+  }
+  let promotion_square_uw = promotion_square.get().unwrap();
+  let attacked_piece = chess.board[promotion_square_uw.0][promotion_square_uw.1];
+  let selected_piece = chess.board[selected.unwrap().0][selected.unwrap().1];
+  let x = match attacked_piece {
+    Some(_) => "x",
+    None => "",
+  };
+
+  let piece_name = match selected_piece.unwrap().name {
+    PieceName::PAWN => "",
+    _ => panic!("AAAAAAAAAouch"),
+  };
+
+  let binding = target_piece.clone();
+  let target_piece = binding.as_str();
+
+  let target_name = match target_piece {
+    "WhiteKnight" | "BlackKnight" => "N",
+    "WhiteBishop" | "BlackBishop" => "B",
+    "WhiteRook" | "BlackRook" => "R",
+    "WhiteQueen" | "BlackQueen" => "Q",
+    "WhiteKing" | "BlackKing" => "K",
+    _ => panic!("mifaszstas {}", target_piece),
+  };
+
+  let end_tile = ChessBoard::get_tile(promotion_square_uw).unwrap();
+  let start_tile = ChessBoard::get_tile(selected.unwrap()).unwrap();
+
+  eprintln!("{piece_name}{start_tile}{x}{end_tile}{target_name}");
+
+  let mut alg = format!("{piece_name}{start_tile}{x}{end_tile}{target_name}");
+
+  ct.send(alg);
+
+  promotin.set(false);
+
+  promotion_square.set(None);
 }
 
 static VALID_MOVES: Lazy<HashMap<String, Vec<(isize, isize)>>> = Lazy::new(|| {
@@ -166,7 +236,7 @@ pub struct ChessProps<'a> {
 pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
   let mut board = cx.props.chess.board;
 
-  static IMAGES: Lazy<HashMap<String, String>> = Lazy::new(|| {
+  static IMAGES: Lazy<Arc<HashMap<String, String>>> = Lazy::new(|| {
     static DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/src/assets/pieces");
 
     let mut inmages = HashMap::new();
@@ -183,7 +253,7 @@ pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
       );
     });
 
-    inmages
+    Arc::new(inmages)
   });
 
   let mut split_move = cx.props.last_move.split(' ');
@@ -204,6 +274,8 @@ pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
   }
 
   let selected = use_state(cx, || None::<(usize, usize)>);
+
+  let promotin = use_state(cx, || false);
 
   let piece_name = if selected.is_some() {
     let selected = selected.get().unwrap();
@@ -231,7 +303,6 @@ pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
   let board_num = cx.props.board_num;
 
   let ct: &Coroutine<String> = use_coroutine(cx, |mut rx: UnboundedReceiver<String>| async move {
-
     tokio::spawn(async move {
       while let Some(alg) = rx.next().await {
         let res = client
@@ -243,119 +314,148 @@ pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
             uuid: utils::get_uuid().unwrap(),
           })
           .await;
-  
+
         println!("{res:?}");
       }
-    }).await.unwrap();
-
+    })
+    .await
+    .unwrap();
   });
+
+  let pre = match cx.props.side {
+    Color::White => "White",
+    Color::Black => "Black",
+  };
+
+  let valid_promotions =
+    ["Knight", "Bishop", "Rook", "Queen", "King"].map(|piece| pre.to_owned() + piece);
+
+  let promotion_square = use_state(cx, || None::<(usize, usize)>);
 
   cx.render(rsx!{
     div {
         class: "chess-container",
-            board.iter().enumerate().map(|(col_idx, col)| {
-                let map = IMAGES.clone();
-                rsx!(
-                    div {
-                        class: "chess-col",
-                        col.iter().enumerate().map(|(cell_idx, cell)| {
-                            let piece = match cell {
-                                Some(piece) => format!("{}{}", piece.color, piece.name),
-                                None => "".to_owned()
+        onclick: |_| promotin.set(false),
+        match promotin.get() {
+          true => rsx!{dialog {class: "promotin-dialog" , open: promotin.get().clone(), rsx!{
+            valid_promotions.iter().map(|name| {
+              let src = IMAGES.get(name).unwrap();
+              let name = name.clone();
+              rsx!(
+                img {
+                  src: "{src}",
+                  onclick: move |_| promote(selected, cx.props.chess, ct, promotion_square, promotin, &name),
+                }
+              )
+            })
+          }}},
+          false => rsx!(""),
+        },
+        board.iter().enumerate().map(|(col_idx, col)| {
+            let map = IMAGES.clone();
+            rsx!(
+                div {
+                    class: "chess-col",
+                    col.iter().enumerate().map(|(cell_idx, cell)| {
+                        let piece = match cell {
+                            Some(piece) => format!("{}{}", piece.color, piece.name),
+                            None => "".to_owned()
+                        };
+                        let real_col = if cx.props.side == Color::White {7-col_idx} else {col_idx};
+                        let real_row = if cx.props.side == Color::White {cell_idx} else {7-cell_idx};
+                        let valid_move = if selected.is_some() && VALID_MOVES.get(if piece_name.is_empty() {"P"} else {piece_name}).unwrap().iter().any(|la_move| {
+                            let square = selected.unwrap();
+                            square.0.saturating_add_signed(la_move.0) == real_col && square.1.saturating_add_signed(la_move.1) == real_row
+                        }) {
+                            let end_tile = ChessBoard::get_tile((real_col, real_row)).unwrap();
+
+                            let starting_tile = ChessBoard::get_tile(selected.unwrap()).unwrap();
+
+                            let x = if cell.is_some() {
+                                "x"
+                            } else if piece_name == "" && cx.props.chess.en_passant == Some((real_col, real_row)) {
+                                "x"
+                            } else {
+                              ""
                             };
-                            let real_col = if cx.props.side == Color::White {7-col_idx} else {col_idx};
-                            let real_row = if cx.props.side == Color::White {cell_idx} else {7-cell_idx};
-                            let valid_move = if selected.is_some() && VALID_MOVES.get(if piece_name.is_empty() {"P"} else {piece_name}).unwrap().iter().any(|la_move| {
-                                let square = selected.unwrap();
-                                square.0.saturating_add_signed(la_move.0) == real_col && square.1.saturating_add_signed(la_move.1) == real_row
-                            }) {
-                                let end_tile = ChessBoard::get_tile((real_col, real_row)).unwrap();
 
-                                let starting_tile = ChessBoard::get_tile(selected.unwrap()).unwrap();
+                            let move_str = format!("{piece_name}{starting_tile}{x}{end_tile}");
 
-                                let x = if cell.is_some() {
-                                    "x"
+                            let valid = cx.props.chess.validate_move(&move_str, cx.props.side);
+
+                            match valid {
+                                Ok(true) => "valid",
+                                _ => ""
+                            }
+
+                        } else {
+                            ""
+                        };
+
+                        let is_last_board = match last_board {
+                            Some(board) => match board.parse::<u32>() {
+                                Ok(num) => num == cx.props.board_num,
+                                Err(_) => false
+                            },
+                            None => false
+                        };
+
+                        let is_last_move = match last_move {
+                            Some(move_str) => {
+
+                                let (start, end, _piece) = if move_str == "O-O" || move_str == "O-O-O" {
+                                    match (move_str, cx.props.last ) {
+                                        ("O-O", Color::White) => (ChessBoard::get_square("e1").unwrap(), ChessBoard::get_square("g1").unwrap(), PieceName::KING),
+                                        ("O-O", Color::Black) => (ChessBoard::get_square("e8").unwrap(), ChessBoard::get_square("g8").unwrap(), PieceName::KING),
+                                        ("O-O-O", Color::White) => (ChessBoard::get_square("e1").unwrap(), ChessBoard::get_square("c1").unwrap(), PieceName::KING),
+                                        ("O-O-O", Color::Black) => (ChessBoard::get_square("e8").unwrap(), ChessBoard::get_square("c8").unwrap(), PieceName::KING),
+                                        _ => unreachable!()
+                                    }
                                 } else {
-                                    ""
+                                    ChessBoard::get_data_from_move(move_str).unwrap()
                                 };
 
-                                let move_str = format!("{piece_name}{starting_tile}{x}{end_tile}");
+                                (real_col == start.0 && real_row == start.1) || (real_col == end.0 && real_row == end.1)
+                            },
+                            None => false
+                        };
 
-                                let valid = cx.props.chess.validate_move(&move_str, cx.props.side);
-
-                                match valid {
-                                    Ok(true) => "valid",
-                                    _ => ""
+                        let class = format!("chess-cell {} {} {} {}", 
+                            if (col_idx+cell_idx)%2==0 {"light"} else {"dark"}, 
+                            if selected.is_some() && selected.unwrap().0 == real_col && selected.unwrap().1 == real_row {"selected"} else {""},
+                            valid_move,
+                            if is_last_board && is_last_move {"last"} else {""}
+                        );
+                        if !piece.is_empty() {
+                            let src = map.get(&piece).unwrap().to_owned();
+                            return rsx!(
+                                div {
+                                    class: "{class}",
+                                    onclick: move |ev| { if let Some(onclick) = cx.props.onclick.as_ref() {
+                                        onclick.call(ev.clone());
+                                        }; on_piece_click(ev, (real_col, real_row), selected, cx.props.chess, cx.props.side, ct, promotin, promotion_square)},
+                                    img {
+                                        src: "{src}",
+                                        height: "100%",
+                                        width: "100%",
+                                    },
                                 }
-
-                            } else {
-                                ""
-                            };
-
-                            let is_last_board = match last_board {
-                                Some(board) => match board.parse::<u32>() {
-                                    Ok(num) => num == cx.props.board_num,
-                                    Err(_) => false
-                                },
-                                None => false
-                            };
-
-                            let is_last_move = match last_move {
-                                Some(move_str) => {
-
-                                    let (start, end, _piece) = if move_str == "O-O" || move_str == "O-O-O" {
-                                        match (move_str, cx.props.last ) {
-                                            ("O-O", Color::White) => (ChessBoard::get_square("e1").unwrap(), ChessBoard::get_square("g1").unwrap(), PieceName::KING),
-                                            ("O-O", Color::Black) => (ChessBoard::get_square("e8").unwrap(), ChessBoard::get_square("g8").unwrap(), PieceName::KING),
-                                            ("O-O-O", Color::White) => (ChessBoard::get_square("e1").unwrap(), ChessBoard::get_square("c1").unwrap(), PieceName::KING),
-                                            ("O-O-O", Color::Black) => (ChessBoard::get_square("e8").unwrap(), ChessBoard::get_square("c8").unwrap(), PieceName::KING),
-                                            _ => unreachable!()
-                                        }
-                                    } else {
-                                        ChessBoard::get_data_from_move(move_str).unwrap()
-                                    };
-
-                                    (real_col == start.0 && real_row == start.1) || (real_col == end.0 && real_row == end.1)
-                                },
-                                None => false
-                            };
-
-                            let class = format!("chess-cell {} {} {} {}", 
-                                if (col_idx+cell_idx)%2==0 {"light"} else {"dark"}, 
-                                if selected.is_some() && selected.unwrap().0 == real_col && selected.unwrap().1 == real_row {"selected"} else {""},
-                                valid_move,
-                                if is_last_board && is_last_move {"last"} else {""}
-                            );
-                            if !piece.is_empty() {
-                                let src = map.get(&piece).unwrap().to_owned();
-                                return rsx!(
-                                    div {
-                                        class: "{class}",
-                                        onclick: move |ev| { if let Some(onclick) = cx.props.onclick.as_ref() {
-                                            onclick.call(ev.clone());
-                                            }; on_piece_click(ev, (real_col, real_row), selected, cx.props.chess, cx.props.side, ct)},
-                                        img {
-                                            src: "{src}",
-                                            height: "100%",
-                                            width: "100%",
-                                        },
-                                    }
-                                )
-                            }
-                            else {
-                                return rsx!(
-                                    div {
-                                        class: "{class}", 
-                                        onclick: move |ev| {if let Some(onclick) = cx.props.onclick.as_ref() {
-                                            onclick.call(ev.clone());
-                                        }; on_click(ev, (real_col, real_row), selected, cx.props.chess, cx.props.side, ct)},
-                                    }
-                                )
-                            }
-                        })
-                    }
-                )
-            })
-        }
+                            )
+                        }
+                        else {
+                            return rsx!(
+                                div {
+                                    class: "{class}", 
+                                    onclick: move |ev| {if let Some(onclick) = cx.props.onclick.as_ref() {
+                                        onclick.call(ev.clone());
+                                    }; on_click(ev, (real_col, real_row), selected, cx.props.chess, cx.props.side, ct, promotin, promotion_square)},
+                                }
+                            )
+                        }
+                    })
+                }
+            )
+        })
+      }
     })
 }

@@ -1,7 +1,10 @@
 //TODO: invalid moves
 
 pub mod tests {
-  use helpers::{chesstactoe::chess::EndResult, ChessBoard, TicTacToe};
+  use helpers::{
+    chesstactoe::{chess::EndResult, Color},
+    ChessBoard, TicTacToe,
+  };
 
   const COORDS: (usize, usize) = (0, 0);
 
@@ -134,6 +137,32 @@ pub mod tests {
     assert!(
       tic.validate_move((0, 0), chers_move).is_err()
         || !tic.validate_move((0, 0), chers_move).unwrap()
+    );
+  }
+
+  #[test]
+  fn test_en_passant() {
+    let mut tic = TicTacToe::default();
+
+    let moves = ["d2d4", "e7e5", "d4xe5", "d7d5"];
+
+    moves.iter().for_each(|alg| {
+      println!("{alg}");
+      tic.make_move(COORDS, alg).unwrap()
+    });
+
+    assert_eq!(
+      "rnbqkbnr/ppp2ppp/8/3pP3/8/8/PPP1PPPP/RNBQKBNR w KQkq d6 0 3",
+      tic.get_board(COORDS).unwrap().to_fen(Color::White).unwrap()
+    );
+
+    let take_passant = "e5xd6";
+
+    tic.make_move(COORDS, take_passant).unwrap();
+
+    assert_eq!(
+      "rnbqkbnr/ppp2ppp/3P4/8/8/8/PPP1PPPP/RNBQKBNR b KQkq - 0 3",
+      tic.get_board(COORDS).unwrap().to_fen(Color::Black).unwrap()
     );
   }
 }

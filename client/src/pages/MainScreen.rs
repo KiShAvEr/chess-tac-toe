@@ -6,7 +6,7 @@ use include_dir::{include_dir, File};
 use tokio::sync::Mutex;
 use tonic::{transport::Channel, Request};
 
-use crate::components::{TicBoard::TicBoard};
+use crate::components::TicBoard::TicBoard;
 
 pub fn MainScreen(cx: Scope) -> Element {
   let style = include_dir!("$CARGO_MANIFEST_DIR/src/components/styles/")
