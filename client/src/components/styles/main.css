@@ -22,3 +22,35 @@ div#main {
     width: 100%;
     height: 100%;
 }
+
+.main-menu {
+    height: 100%;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+}
+
+.join-lobby-dialog {
+    display: flex;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    flex-direction: column;
+    justify-content: space-evenly;
+}
+
+.join-lobby-container {
+    display: flex;
+    justify-content: space-evenly;
+}
+
+.close-dialog-button {
+    margin-top: 10px;
+}
+
+.join-lobby-button {
+    margin-left: 5px;
+}

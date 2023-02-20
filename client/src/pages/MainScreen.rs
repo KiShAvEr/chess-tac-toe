@@ -1,58 +1,51 @@
-use std::sync::Arc;
-
 use dioxus::prelude::*;
-use helpers::chesstactoe::{game_client::GameClient, JoinRequest};
-use include_dir::{include_dir, File};
-use tokio::sync::Mutex;
-use tonic::{transport::Channel, Request};
-
-use crate::components::TicBoard::TicBoard;
+use dioxus_router::use_router;
 
 pub fn MainScreen(cx: Scope) -> Element {
-  let style = include_dir!("$CARGO_MANIFEST_DIR/src/components/styles/")
-    .files()
-    .fold("".to_owned(), |last: String, next: &File| {
-      last + next.contents_utf8().unwrap()
-    });
+  let router = use_router(cx);
 
-  let client = cx.use_hook(|| cx.consume_context::<Arc<Mutex<GameClient<Channel>>>>());
+  let opened = use_state(cx, || false);
+  let set_opened = opened.setter();
 
-  match client.is_none() {
-    true => cx.render(rsx!(
+  let lobby_code = use_state(cx, || "".to_owned());
+  let set_lobby_code = lobby_code.setter();
+
+  cx.render(rsx! {
       div {
-        "Something went to shit"
+          class: "main-menu",
+          button {
+              onclick: move |_| { router.navigate_to("/game") },
+              "Against random opponent"
+          },
+          button {
+              onclick: move |_| { opened.set(true) }, "Join lobby"
+          },
+          match opened.get() {
+            true => rsx!{dialog { 
+                class: "join-lobby-dialog",
+                open: true, 
+                div {
+
+                    class: "join-lobby-container",
+
+                    input {
+                        oninput: move |ev| { set_lobby_code(ev.value.clone()) },
+                        placeholder: "Lobby code"
+                    }
+                    button {
+                        class: "join-lobby-button",
+                        onclick: move |_ev| { router.navigate_to(format!("/game/{lobby_code}").as_str()) },
+                        "Join lobby"
+                    }
+                }
+                button {
+                    class: "close-dialog-button",
+                    onclick: move |_ev| { opened.set(false) },
+                    "Close"
+                } 
+            }},
+            false => rsx!("")
+          }
       }
-    )),
-    false => {
-      let client = client.clone().unwrap();
-
-      let future = use_future(cx, (), |_| async move {
-        let mut client = client
-          .lock()
-          .await
-          .join(Request::new(JoinRequest {}))
-          .await
-          .unwrap()
-          .into_inner();
-
-        while let Some(cli) = client.message().await.unwrap() {
-          utils::set_uuid(&cli.uuid)
-        }
-      });
-
-      match future.value() {
-        Some(()) => {
-          cx.render(rsx!(
-            div {
-              class: "main-container",
-              style {"{style}"}
-              TicBoard {}
-              // ChessBoard {side: helpers::chesstactoe::Color::White}
-            }
-          ))
-        }
-        None => cx.render(rsx!("Waiting for opponent")),
-      }
-    }
-  }
+  })
 }

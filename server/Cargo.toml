@@ -16,6 +16,7 @@ uuid = {version = "1.1.2", features = ["v4"]}
 helpers = { path = "../helpers"}
 dashmap = "5.4.0"
 parking_lot = "0.12.1"
+base64 = "0.21.0"
 
 [build-dependencies]
 tonic-build = "0.8.4"

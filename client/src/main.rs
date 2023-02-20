@@ -5,7 +5,8 @@ use std::sync::Arc;
 use dioxus::prelude::*;
 use dioxus_router::{Route, Router};
 use helpers::chesstactoe::game_client::GameClient;
-use pages::MainScreen::MainScreen;
+use include_dir::{include_dir, File};
+use pages::{GameScreen::GameScreen, MainScreen::MainScreen};
 use tokio::sync::Mutex;
 
 mod components;
@@ -22,14 +23,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn app(cx: Scope) -> Element {
   let client = use_future(cx, (), |_| async move { GameClient::connect(URL).await });
 
+  let style = include_dir!("$CARGO_MANIFEST_DIR/src/components/styles/")
+    .files()
+    .fold("".to_owned(), |last: String, next: &File| {
+      last + next.contents_utf8().unwrap()
+    });
+
   match client.value() {
     Some(client) => match client {
       Ok(client) => {
         cx.provide_context(Arc::new(Mutex::new(client.clone())));
 
         cx.render(rsx! {
+            style { "{style}" }
             Router {
-                Route { to: "/", MainScreen {}},
+                Route { to: "/", MainScreen {} },
+                Route { to: "/game", GameScreen {} }
+                Route { to: "/game/:id", GameScreen { } }
             }
         })
       }

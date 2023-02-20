@@ -6,6 +6,19 @@ service Game {
   rpc Join(JoinRequest) returns (stream JoinResponse);
   rpc SubscribeBoard(SubscribeBoardRequest) returns (stream SubscribeBoardResponse);
   rpc TakeBack(TakeBackRequest) returns (TakeBackResponse);
+  rpc JoinLobby(JoinLobbyRequest) returns (stream JoinResponse);
+  rpc MakeLobby(MakeLobbyRequest) returns (stream MakeLobbyResponse);
+}
+
+message JoinLobbyRequest {
+  string code = 1;
+}
+
+message MakeLobbyRequest {}
+
+message MakeLobbyResponse {
+  JoinResponse joinResponse = 1;
+  string roomId = 2;
 }
 
 message TakeBackResponse {}

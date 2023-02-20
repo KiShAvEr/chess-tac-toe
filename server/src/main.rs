@@ -1,10 +1,11 @@
 #![allow(unused)]
 
+use base64::Engine;
 use dashmap::DashMap;
 use helpers::chesstactoe::{
-  Chess, Color, JoinRequest, JoinResponse, MidGameRequest, MovePieceRequest, MovePieceResponse,
-  MoveResult, SubscribeBoardRequest, SubscribeBoardResponse, TakeBackRequest, TakeBackResponse,
-  TicTacToe,
+  Chess, Color, JoinLobbyRequest, JoinRequest, JoinResponse, MakeLobbyRequest, MakeLobbyResponse,
+  MidGameRequest, MovePieceRequest, MovePieceResponse, MoveResult, SubscribeBoardRequest,
+  SubscribeBoardResponse, TakeBackRequest, TakeBackResponse, TicTacToe,
 };
 use helpers::{
   chesstactoe::{
@@ -43,6 +44,7 @@ struct GameService {
   receivers: Arc<DashMap<Uuid, Sender<Result<SubscribeBoardResponse, Status>>>>,
   game_ids: Arc<DashMap<Uuid, Uuid>>,
   games: Arc<DashMap<Uuid, Ongoing>>,
+  lobbies: Arc<DashMap<String, (Uuid, Sender<Result<MakeLobbyResponse, Status>>)>>,
 }
 
 #[tonic::async_trait]
@@ -273,6 +275,88 @@ impl Game for GameService {
     return Err(Status::permission_denied("User is not in a game"));
 
     Ok(Response::new(TakeBackResponse {}))
+  }
+
+  type MakeLobbyStream = ReceiverStream<Result<MakeLobbyResponse, Status>>;
+
+  async fn make_lobby(
+    &self,
+    request: Request<MakeLobbyRequest>,
+  ) -> Result<Response<Self::MakeLobbyStream>, Status> {
+    let (tx, rx) = mpsc::channel(2);
+
+    let room_id = base64::engine::general_purpose::URL_SAFE.encode(Uuid::new_v4());
+
+    let user_id = Uuid::new_v4();
+
+    tx.send(Ok(MakeLobbyResponse {
+      join_response: Some(JoinResponse {
+        status: GameStatus::NotReady as i32,
+        uuid: user_id.to_string(),
+      }),
+      room_id: room_id.to_string(),
+    }))
+    .await;
+
+    self.lobbies.insert(room_id, (user_id, tx));
+
+    Ok(Response::new(ReceiverStream::new(rx)))
+  }
+  
+  type JoinLobbyStream = Self::JoinStream;
+
+  async fn join_lobby(
+    &self,
+    request: Request<JoinLobbyRequest>,
+  ) -> Result<Response<Self::JoinLobbyStream>, Status> {
+    let req = request.into_inner();
+
+    let lobby_code = req.code;
+
+    if let Some((_lobby, white)) = self.lobbies.remove(&lobby_code) {
+      let join_uuid = Uuid::new_v4();
+
+      let game: Ongoing = Ongoing {
+        white: white.0,
+        black: join_uuid,
+        game: HelperToe::default(),
+      };
+
+      let game_uuid = Uuid::new_v4();
+
+      self.games.insert(game_uuid, game);
+
+      self.game_ids.insert(join_uuid, game_uuid);
+
+      self.game_ids.insert(white.0, game_uuid);
+
+      white
+        .1
+        .send(Ok(MakeLobbyResponse {
+          room_id: "".to_owned(),
+          join_response: Some(JoinResponse {
+            status: GameStatus::Ready as i32,
+            uuid: white.0.to_string(),
+          }),
+        }))
+        .await
+        .unwrap_or(());
+
+      white.1.closed();
+
+      let (tx, rx) = mpsc::channel(1);
+
+      tx.send(Ok(JoinResponse {
+        status: GameStatus::Ready as i32,
+        uuid: join_uuid.to_string(),
+      })).await;
+
+      tx.closed();
+
+      return Ok(Response::new(ReceiverStream::new(rx)));
+    }
+
+    Err(Status::not_found("Lobby doesn't exist"))
   }
 }
 
