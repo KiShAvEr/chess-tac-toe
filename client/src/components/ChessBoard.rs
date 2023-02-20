@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use base64::Engine;
-use dioxus::{html::dialog, prelude::*};
+use dioxus::{prelude::*};
 use futures::stream::StreamExt;
 use helpers::{
   chesstactoe::{game_client::GameClient, Color, MovePieceRequest},
@@ -157,7 +157,7 @@ fn promote(
 
   eprintln!("{piece_name}{start_tile}{x}{end_tile}{target_name}");
 
-  let mut alg = format!("{piece_name}{start_tile}{x}{end_tile}{target_name}");
+  let alg = format!("{piece_name}{start_tile}{x}{end_tile}{target_name}");
 
   ct.send(alg);
 
@@ -337,7 +337,7 @@ pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
         class: "chess-container",
         onclick: |_| promotin.set(false),
         match promotin.get() {
-          true => rsx!{dialog {class: "promotin-dialog" , open: promotin.get().clone(), rsx!{
+          true => rsx!{dialog {class: "promotin-dialog" , open: *promotin.get(), rsx!{
             valid_promotions.iter().map(|name| {
               let src = IMAGES.get(name).unwrap();
               let name = name.clone();
@@ -373,7 +373,7 @@ pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
 
                             let x = if cell.is_some() {
                                 "x"
-                            } else if piece_name == "" && cx.props.chess.en_passant == Some((real_col, real_row)) {
+                            } else if piece_name.is_empty() && cx.props.chess.en_passant == Some((real_col, real_row)) {
                                 "x"
                             } else {
                               ""

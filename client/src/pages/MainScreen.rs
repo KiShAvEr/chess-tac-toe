@@ -5,7 +5,7 @@ pub fn MainScreen(cx: Scope) -> Element {
   let router = use_router(cx);
 
   let opened = use_state(cx, || false);
-  let set_opened = opened.setter();
+  let _set_opened = opened.setter();
 
   let lobby_code = use_state(cx, || "".to_owned());
   let set_lobby_code = lobby_code.setter();

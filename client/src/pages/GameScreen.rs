@@ -1,11 +1,11 @@
-use std::{sync::Arc, marker::PhantomData};
+use std::{sync::Arc};
 
 use dioxus::prelude::*;
 use dioxus_router::{use_router, use_route};
 use helpers::chesstactoe::{game_client::GameClient, JoinRequest, JoinLobbyRequest};
-use include_dir::{include_dir, File};
+
 use tokio::sync::Mutex;
-use tonic::{transport::Channel, Request};
+use tonic::{transport::Channel};
 
 use crate::components::TicBoard::TicBoard;
 
@@ -42,10 +42,10 @@ pub fn GameScreen(cx: Scope) -> Element {
             while let Some(response) = res.message().await.unwrap() {
               utils::set_uuid(&response.uuid)
             }
-            return Ok(())
+            Ok(())
           },
           Err(er) => {
-            return Err(er);
+            Err(er)
           }
         }
 
