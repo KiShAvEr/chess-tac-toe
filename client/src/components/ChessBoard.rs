@@ -225,12 +225,12 @@ static VALID_MOVES: Lazy<HashMap<String, Vec<(isize, isize)>>> = Lazy::new(|| {
 
 #[derive(Props)]
 pub struct ChessProps<'a> {
-  side: Color,
-  chess: &'a ChessBoard,
-  board_num: u32,
-  onclick: Option<EventHandler<'a, MouseEvent>>,
-  last_move: String,
-  last: Color,
+  pub side: Color,
+  pub chess: &'a ChessBoard,
+  pub board_num: u32,
+  pub onclick: Option<EventHandler<'a, MouseEvent>>,
+  pub last_move: String,
+  pub last: Color,
 }
 
 pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {

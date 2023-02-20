@@ -150,43 +150,47 @@ impl Game for GameService {
 
     if (!q.is_empty()) {
       let white = q.remove(0);
-      let game: Ongoing = Ongoing {
-        white: white.0,
-        black: uuid,
-        game: HelperToe::default(),
-      };
 
-      let game_uuid = Uuid::new_v4();
-
-      self.games.insert(game_uuid, game);
-
-      self.game_ids.insert(uuid, game_uuid);
-
-      self.game_ids.insert(white.0, game_uuid);
-
-      white
-        .1
-        .send(Ok(JoinResponse {
+      if !white.1.is_closed() {
+        let game: Ongoing = Ongoing {
+          white: white.0,
+          black: uuid,
+          game: HelperToe::default(),
+        };
+  
+        let game_uuid = Uuid::new_v4();
+  
+        self.games.insert(game_uuid, game);
+  
+        self.game_ids.insert(uuid, game_uuid);
+  
+        self.game_ids.insert(white.0, game_uuid);
+  
+        white
+          .1
+          .send(Ok(JoinResponse {
+            status: GameStatus::Ready as i32,
+            uuid: white.0.to_string(),
+          }))
+          .await
+          .unwrap_or(());
+  
+        let (mut tx, rx) = mpsc::channel(4);
+  
+        tx.send(Ok(JoinResponse {
           status: GameStatus::Ready as i32,
-          uuid: white.0.to_string(),
+          uuid: uuid.to_string(),
         }))
         .await
-        .unwrap_or(());
-
-      let (mut tx, rx) = mpsc::channel(4);
-
-      tx.send(Ok(JoinResponse {
-        status: GameStatus::Ready as i32,
-        uuid: uuid.to_string(),
-      }))
-      .await
-      .unwrap();
-
-      tx.closed();
-
-      white.1.closed();
-
-      return Ok(Response::new(ReceiverStream::new(rx)));
+        .unwrap();
+  
+        tx.closed();
+  
+        white.1.closed();
+  
+        return Ok(Response::new(ReceiverStream::new(rx)));
+      }
+      eprintln!("Closed")
     }
 
     let (mut tx, rx) = mpsc::channel(4);
@@ -285,7 +289,7 @@ impl Game for GameService {
   ) -> Result<Response<Self::MakeLobbyStream>, Status> {
     let (tx, rx) = mpsc::channel(2);
 
-    let room_id = base64::engine::general_purpose::URL_SAFE.encode(Uuid::new_v4());
+    let room_id = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(Uuid::new_v4());
 
     let user_id = Uuid::new_v4();
 
@@ -315,6 +319,10 @@ impl Game for GameService {
 
     if let Some((_lobby, white)) = self.lobbies.remove(&lobby_code) {
       let join_uuid = Uuid::new_v4();
+
+      if white.1.is_closed() {
+        return Err(Status::not_found("Lobby does not exist"))
+      }
 
       let game: Ongoing = Ongoing {
         white: white.0,

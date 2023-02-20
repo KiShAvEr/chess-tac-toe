@@ -20,6 +20,9 @@ pub fn MainScreen(cx: Scope) -> Element {
           button {
               onclick: move |_| { opened.set(true) }, "Join lobby"
           },
+          button {
+            onclick: move |_| { router.navigate_to("/game/new") }, "Make lobby"
+          }
           match opened.get() {
             true => rsx!{dialog { 
                 class: "join-lobby-dialog",
@@ -34,7 +37,7 @@ pub fn MainScreen(cx: Scope) -> Element {
                     }
                     button {
                         class: "join-lobby-button",
-                        onclick: move |_ev| { router.navigate_to(format!("/game/{lobby_code}").as_str()) },
+                        onclick: move |_ev| { if !lobby_code.is_empty() { router.navigate_to(format!("/game/{lobby_code}").as_str()) }; opened.set(false) },
                         "Join lobby"
                     }
                 }

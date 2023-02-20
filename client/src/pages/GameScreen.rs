@@ -1,8 +1,9 @@
 use std::{sync::Arc};
 
 use dioxus::prelude::*;
+use dioxus_desktop::{use_window, tao::clipboard};
 use dioxus_router::{use_router, use_route};
-use helpers::chesstactoe::{game_client::GameClient, JoinRequest, JoinLobbyRequest};
+use helpers::chesstactoe::{game_client::GameClient, JoinRequest, JoinLobbyRequest, MakeLobbyRequest};
 
 use tokio::sync::Mutex;
 use tonic::{transport::Channel};
@@ -14,6 +15,8 @@ pub fn GameScreen(cx: Scope) -> Element {
 
   let lobby_code = use_route(cx).parse_segment_or_404::<String>("id");
 
+  let is_new_lobby = use_route(cx).last_segment() == Some("new");
+
   match client.is_none() {
     true => cx.render(rsx!(
       div {
@@ -23,31 +26,55 @@ pub fn GameScreen(cx: Scope) -> Element {
     false => {
       let client = client.clone().unwrap();
 
+      let invite_code = use_state(cx, || None);
+      let set_invite_code = invite_code.setter();
+
       let future = use_future(cx, (), |_| async move {
         
         let mut client = client.lock().await;
 
         println!("{lobby_code:?}");
 
-        let cli = match lobby_code {
-          Some(code) => client.join_lobby(JoinLobbyRequest { code: code.to_string() }).await,
-          None => client.join(JoinRequest {}).await
-        };
+        if is_new_lobby {
+          let cli = client.make_lobby(MakeLobbyRequest {}).await;
+          drop(client);
 
-        drop(client);
-
-        match cli {
-          Ok(res) => {
-            let mut res = res.into_inner();
-            while let Some(response) = res.message().await.unwrap() {
-              utils::set_uuid(&response.uuid)
+          match cli {
+            Ok(res) => {
+              let mut res = res.into_inner();
+              while let Some(response) = res.message().await.unwrap() {
+                utils::set_uuid(&response.join_response.unwrap().uuid);
+                set_invite_code(Some(response.room_id))
+              }
+              return Ok(())
+            },
+            Err(er) => {
+              return Err(er)
             }
-            Ok(())
-          },
-          Err(er) => {
-            Err(er)
+          }
+
+        } else {
+          let cli = match &lobby_code {
+            Some(code) => client.join_lobby(JoinLobbyRequest { code: code.to_string() }).await,
+            None => client.join(JoinRequest {}).await
+          };
+  
+          drop(client);
+  
+          match cli {
+            Ok(res) => {
+              let mut res = res.into_inner();
+              while let Some(response) = res.message().await.unwrap() {
+                utils::set_uuid(&response.uuid)
+              }
+              return Ok(())
+            },
+            Err(er) => {
+              return Err(er)
+            }
           }
         }
+
 
       });
 
@@ -57,7 +84,7 @@ pub fn GameScreen(cx: Scope) -> Element {
             Ok(_) => cx.render(rsx!(
               div {
                 class: "main-container",
-                TicBoard {}
+                TicBoard {},
                 // ChessBoard {side: helpers::chesstactoe::Color::White}
               }
             )),
@@ -72,7 +99,16 @@ pub fn GameScreen(cx: Scope) -> Element {
             })
           }
         }
-        None => cx.render(rsx!("Waiting for opponent")),
+        None => cx.render(rsx!{"Waiting for opponent", if invite_code.is_some() {
+          let invite_code = invite_code.as_ref().unwrap();
+          rsx!(div {
+            class: "lobby-code",
+            "{invite_code}",
+            button {
+              onclick: move |_| { clipboard::Clipboard::new().write_text(invite_code); }, "Copy"
+            }
+          })
+        },}),
       }
     }
   }
