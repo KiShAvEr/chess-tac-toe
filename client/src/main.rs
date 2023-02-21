@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use dioxus::prelude::*;
-use dioxus_desktop::{Config, WindowBuilder, tao::{menu::{MenuBar, MenuItemAttributes, MenuItem}, accelerator::Accelerator}, use_window};
+use dioxus_desktop::{Config, WindowBuilder, tao::{menu::{MenuBar, MenuItem}}, use_window};
 use dioxus_router::{Route, Router};
 use helpers::chesstactoe::game_client::GameClient;
 use include_dir::{include_dir, File};

@@ -57,10 +57,10 @@ pub fn TicBoard(cx: Scope) -> Element {
 
   let selected_board = use_state(cx, || None::<usize>);
 
-  static o: Lazy<String> = Lazy::new(|| {
+  static O: Lazy<String> = Lazy::new(|| {
     base64::engine::general_purpose::STANDARD.encode(include_bytes!("../assets/Blue_O.svg"))
   });
-  static x: Lazy<String> = Lazy::new(|| {
+  static X: Lazy<String> = Lazy::new(|| {
     base64::engine::general_purpose::STANDARD.encode(include_bytes!("../assets/Red_X.svg"))
   });
 
@@ -85,8 +85,8 @@ pub fn TicBoard(cx: Scope) -> Element {
           div {
             class: "tic-container",
             (0..3).map(|col| {
-              let o_src = o.clone();
-              let x_src = x.clone();
+              let o_src = O.clone();
+              let x_src = X.clone();
               rsx!{
                 div {
                   class: "tic-col",

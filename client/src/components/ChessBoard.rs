@@ -19,8 +19,7 @@ fn on_piece_click(
   chess: &ChessBoard,
   side: Color,
   ct: &Coroutine<String>,
-  promotin: &UseState<bool>,
-  promotion_square: &UseState<Option<(usize, usize)>>,
+  promotion_data: PromotionData
 ) {
   if selected.is_none() {
     selected.modify(|_| Some(square))
@@ -32,9 +31,13 @@ fn on_piece_click(
     chess,
     side,
     ct,
-    promotin,
-    promotion_square,
+    promotion_data
   );
+}
+
+struct PromotionData<'a> {
+  promotin: &'a UseState<bool>,
+  promotion_square: &'a UseState<Option<(usize, usize)>>
 }
 
 fn on_click(
@@ -44,9 +47,9 @@ fn on_click(
   chess: &ChessBoard,
   side: Color,
   ct: &Coroutine<String>,
-  promotin: &UseState<bool>,
-  promotion_square: &UseState<Option<(usize, usize)>>,
+  PromotionData { promotin, promotion_square }: PromotionData
 ) {
+
   if selected.is_none() {
     return;
   }
@@ -105,9 +108,9 @@ fn on_click(
 
   if is_valid.is_ok() && is_valid.unwrap() {
     unsafe {
-      static mut count: usize = 0;
-      count += 1;
-      println!("{count}");
+      static mut COUNT: usize = 0;
+      COUNT += 1;
+      println!("{COUNT}");
     }
 
     ct.send(alg);
@@ -120,9 +123,8 @@ fn promote(
   selected: &UseState<Option<(usize, usize)>>,
   chess: &ChessBoard,
   ct: &Coroutine<String>,
-  promotion_square: &UseState<Option<(usize, usize)>>,
-  promotin: &UseState<bool>,
-  target_piece: &String,
+  PromotionData { promotin, promotion_square }: PromotionData,
+  target_piece: &str,
 ) {
   if promotion_square.is_none() {
     panic!("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
@@ -139,9 +141,6 @@ fn promote(
     PieceName::PAWN => "",
     _ => panic!("AAAAAAAAAouch"),
   };
-
-  let binding = target_piece.clone();
-  let target_piece = binding.as_str();
 
   let target_name = match target_piece {
     "WhiteKnight" | "BlackKnight" => "N",
@@ -268,8 +267,8 @@ pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
   if cx.props.side == Color::White {
     board.reverse();
   } else {
-    for i in 0..board.len() {
-      board[i].reverse();
+    for row in &mut board {
+      row.reverse();
     }
   }
 
@@ -344,7 +343,7 @@ pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
               rsx!(
                 img {
                   src: "{src}",
-                  onclick: move |_| promote(selected, cx.props.chess, ct, promotion_square, promotin, &name),
+                  onclick: move |_| promote(selected, cx.props.chess, ct, PromotionData{ promotion_square, promotin }, &name),
                 }
               )
             })
@@ -371,9 +370,7 @@ pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
 
                             let starting_tile = ChessBoard::get_tile(selected.unwrap()).unwrap();
 
-                            let x = if cell.is_some() {
-                                "x"
-                            } else if piece_name.is_empty() && cx.props.chess.en_passant == Some((real_col, real_row)) {
+                            let x = if cell.is_some() || piece_name.is_empty() && cx.props.chess.en_passant == Some((real_col, real_row)) {
                                 "x"
                             } else {
                               ""
@@ -433,7 +430,7 @@ pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
                                     class: "{class}",
                                     onclick: move |ev| { if let Some(onclick) = cx.props.onclick.as_ref() {
                                         onclick.call(ev.clone());
-                                        }; on_piece_click(ev, (real_col, real_row), selected, cx.props.chess, cx.props.side, ct, promotin, promotion_square)},
+                                        }; on_piece_click(ev, (real_col, real_row), selected, cx.props.chess, cx.props.side, ct, PromotionData { promotin, promotion_square })},
                                     img {
                                         src: "{src}",
                                         height: "100%",
@@ -448,7 +445,7 @@ pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
                                     class: "{class}", 
                                     onclick: move |ev| {if let Some(onclick) = cx.props.onclick.as_ref() {
                                         onclick.call(ev.clone());
-                                    }; on_click(ev, (real_col, real_row), selected, cx.props.chess, cx.props.side, ct, promotin, promotion_square)},
+                                    }; on_click(ev, (real_col, real_row), selected, cx.props.chess, cx.props.side, ct, PromotionData { promotin, promotion_square })},
                                 }
                             )
                         }

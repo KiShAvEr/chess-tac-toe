@@ -93,10 +93,12 @@ impl Display for TicError {
 
 impl std::error::Error for TicError {}
 
+type Coordinates = (usize, usize);
+
 impl TicTacToe {
   pub fn validate_move(
     &self,
-    board: (usize, usize),
+    board: Coordinates,
     alg: &str,
   ) -> Result<bool, Box<dyn std::error::Error>> {
     self.get_board(board)?.validate_move(alg, self.next)
@@ -104,7 +106,7 @@ impl TicTacToe {
 
   pub fn make_move(
     &mut self,
-    board: (usize, usize),
+    board: Coordinates,
     alg: &str,
   ) -> Result<(), Box<dyn std::error::Error>> {
     if !self.validate_move(board, alg)? {
@@ -183,7 +185,7 @@ impl TicTacToe {
     Ok(TicTacToe { chesses, next })
   }
 
-  pub fn get_board(&self, board: (usize, usize)) -> Result<&ChessBoard, TicError> {
+  pub fn get_board(&self, board: Coordinates) -> Result<&ChessBoard, TicError> {
     if (board.0 > 2 || board.1 > 2) {
       return Err(TicError::InvalidCoords);
     }
@@ -222,8 +224,11 @@ impl From<chesstactoe::TicTacToe> for TicTacToe {
     let mut chesses = TicTacToe::default().chesses;
 
     for i in 0..3 {
-      for j in 0..3 {
-        chesses[i][j] = ChessBoard::parse_fen(&value.chesses[i * 3 + j].fen).unwrap()
+    }
+    
+    for (i, row) in chesses.iter_mut().enumerate() {
+      for (j, chess) in row.iter_mut().enumerate().take(3) {
+        *chess = ChessBoard::parse_fen(&value.chesses[i * 3 + j].fen).unwrap()
       }
     }
 
@@ -238,7 +243,7 @@ impl From<chesstactoe::TicTacToe> for TicTacToe {
 pub struct ChessBoard {
   pub board: [[Option<Piece>; 8]; 8],
   castling: HashMap<(Color, Castling), bool>,
-  pub en_passant: Option<(usize, usize)>,
+  pub en_passant: Option<Coordinates>,
   halfmove: usize,
   fullmove: usize,
   pub end: EndResult,
@@ -268,7 +273,8 @@ impl ChessBoard {
       board += &(rand + "/")
     }
     board = board[..board.len() - 1].to_string();
-    return Self::parse_fen(&format!("{board} w KQkq - 0 1")).unwrap();
+
+    Self::parse_fen(&format!("{board} w KQkq - 0 1")).unwrap()
   }
 
   pub fn parse_fen(fen: &str) -> Result<ChessBoard, FenError> {
@@ -363,23 +369,23 @@ impl ChessBoard {
     let castle_part = parts.next().unwrap();
 
     let mut castling: HashMap<(Color, Castling), bool> = HashMap::from([
-      ((Color::Black, Castling::KINGSIDE), false),
-      ((Color::Black, Castling::QUEENSIDE), false),
-      ((Color::White, Castling::KINGSIDE), false),
-      ((Color::White, Castling::QUEENSIDE), false),
+      ((Color::Black, Castling::Kingside), false),
+      ((Color::Black, Castling::Queenside), false),
+      ((Color::White, Castling::Kingside), false),
+      ((Color::White, Castling::Queenside), false),
     ]);
 
     if (castle_part.contains('K')) {
-      castling.insert((Color::White, Castling::KINGSIDE), true);
+      castling.insert((Color::White, Castling::Kingside), true);
     }
     if (castle_part.contains('Q')) {
-      castling.insert((Color::White, Castling::QUEENSIDE), true);
+      castling.insert((Color::White, Castling::Queenside), true);
     }
     if (castle_part.contains('k')) {
-      castling.insert((Color::Black, Castling::KINGSIDE), true);
+      castling.insert((Color::Black, Castling::Kingside), true);
     }
     if (castle_part.contains('q')) {
-      castling.insert((Color::Black, Castling::QUEENSIDE), true);
+      castling.insert((Color::Black, Castling::Queenside), true);
     }
 
     let en_passant = parts.next().unwrap();
@@ -427,7 +433,7 @@ impl ChessBoard {
     })
   }
 
-  pub fn get_square(str: &str) -> Result<(usize, usize), FenError> {
+  pub fn get_square(str: &str) -> Result<Coordinates, FenError> {
     let regex = regex!("[a-h]{1}[1-8]{1}");
     if (!regex.is_match(str)) {
       return Err(FenError::InvalidFormat);
@@ -450,7 +456,7 @@ impl ChessBoard {
     Ok((row as usize, column as usize))
   }
 
-  pub fn get_tile(square: (usize, usize)) -> Result<String, FenError> {
+  pub fn get_tile(square: Coordinates) -> Result<String, FenError> {
     let chars = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 
     if (square.0 > 7 || square.1 > 7) {
@@ -462,7 +468,7 @@ impl ChessBoard {
 
   pub fn get_data_from_move(
     move_string: &str,
-  ) -> Result<((usize, usize), (usize, usize), PieceName), FenError> {
+  ) -> Result<(Coordinates, Coordinates, PieceName), FenError> {
     let name = match &move_string[0..1] {
       "N" => PieceName::KNIGHT,
       "R" => PieceName::ROOK,
@@ -686,8 +692,8 @@ impl ChessBoard {
 
   fn validate_check(
     &self,
-    starting_coords: &(usize, usize),
-    end_coords: &(usize, usize),
+    starting_coords: &Coordinates,
+    end_coords: &Coordinates,
     board: &[[Option<Piece>; 8]; 8],
     alg: &str,
     next: Color,
@@ -721,7 +727,7 @@ impl ChessBoard {
     fn check_the_diagonals(
       board: &[[Option<Piece>; 8]; 8],
       color: &Color,
-      king_position: (usize, usize),
+      king_position: Coordinates,
     ) -> bool {
       let directions = [(1, 1), (-1, 1), (1, -1), (-1, -1)];
       for &(dx, dy) in &directions {
@@ -730,22 +736,14 @@ impl ChessBoard {
         while (0..8).contains(&x) && (0..8).contains(&y) {
           let piece = board[x as usize][y as usize];
           if let Some(other_piece) = piece {
-            if other_piece.color != *color {
-              if other_piece.name == PieceName::BISHOP || other_piece.name == PieceName::QUEEN {
-                return false;
-              } else if dx == 1
-                && dy == 1
-                && other_piece.name == PieceName::PAWN
-                && *color == Color::White
-              {
-                return false;
-              } else if dx == -1
-                && dy == 1
-                && other_piece.name == PieceName::PAWN
-                && *color == Color::Black
-              {
-                return false;
-              }
+            if other_piece.color != *color && (other_piece.name == PieceName::BISHOP || other_piece.name == PieceName::QUEEN || dx == 1
+              && dy == 1
+              && other_piece.name == PieceName::PAWN
+              && *color == Color::White || dx == -1
+              && dy == 1
+              && other_piece.name == PieceName::PAWN
+              && *color == Color::Black) {
+              return false;
             }
             break;
           }
@@ -759,7 +757,7 @@ impl ChessBoard {
     fn check_the_lateral(
       board: &[[Option<Piece>; 8]; 8],
       color: &Color,
-      king_position: (usize, usize),
+      king_position: Coordinates,
     ) -> bool {
       let directions = [(1, 0), (-1, 0), (0, 1), (0, -1)];
       for &(x, y) in directions.iter() {
@@ -796,7 +794,7 @@ impl ChessBoard {
     fn check_the_knights(
       board: &[[Option<Piece>; 8]; 8],
       color: &Color,
-      king_position: (usize, usize),
+      king_position: Coordinates,
     ) -> bool {
       // A list of tuples representing the positions that a knight
       // could attack from its current position
@@ -844,8 +842,8 @@ impl ChessBoard {
   }
 
   fn validate_bishop(
-    starting_coords: &(usize, usize),
-    end_coords: &(usize, usize),
+    starting_coords: &Coordinates,
+    end_coords: &Coordinates,
     board: &[[Option<Piece>; 8]; 8],
   ) -> bool {
     let row_diff = starting_coords.0 as i32 - end_coords.0 as i32;
@@ -881,8 +879,8 @@ impl ChessBoard {
   }
 
   fn validate_rook(
-    starting_coords: &(usize, usize),
-    end_coords: &(usize, usize),
+    starting_coords: &Coordinates,
+    end_coords: &Coordinates,
     board: &[[Option<Piece>; 8]; 8],
   ) -> bool {
     if starting_coords.0 == end_coords.0 || starting_coords.1 == end_coords.1 {
@@ -987,16 +985,16 @@ impl ChessBoard {
 
     let mut has_castling = false;
     for &(color, side) in &[
-      (Color::White, Castling::KINGSIDE),
-      (Color::White, Castling::QUEENSIDE),
-      (Color::Black, Castling::KINGSIDE),
-      (Color::Black, Castling::QUEENSIDE),
+      (Color::White, Castling::Kingside),
+      (Color::White, Castling::Queenside),
+      (Color::Black, Castling::Kingside),
+      (Color::Black, Castling::Queenside),
     ] {
       if *self.castling.get(&(color, side)).unwrap() {
         has_castling = true;
         let letter = match side {
-          Castling::KINGSIDE => 'K',
-          Castling::QUEENSIDE => 'Q',
+          Castling::Kingside => 'K',
+          Castling::Queenside => 'Q',
         };
         output += &if color == Color::White {
           letter
@@ -1077,8 +1075,8 @@ impl ChessBoard {
 
       self.halfmove += 1;
 
-      self.castling.insert((next, Castling::KINGSIDE), false);
-      self.castling.insert((next, Castling::QUEENSIDE), false);
+      self.castling.insert((next, Castling::Kingside), false);
+      self.castling.insert((next, Castling::Queenside), false);
 
       if (next == Color::Black) {
         self.fullmove += 1;
@@ -1135,30 +1133,30 @@ impl ChessBoard {
     self.board[end_coords.0][end_coords.1] = Some(piece);
 
     if (piece.name == PieceName::KING) {
-      self.castling.insert((next, Castling::KINGSIDE), false);
-      self.castling.insert((next, Castling::QUEENSIDE), false);
+      self.castling.insert((next, Castling::Kingside), false);
+      self.castling.insert((next, Castling::Queenside), false);
     } else if (piece.name == PieceName::ROOK) {
       match next {
         Color::Black => {
           if (starting_square == "a8") {
             self
               .castling
-              .insert((Color::Black, Castling::QUEENSIDE), false);
+              .insert((Color::Black, Castling::Queenside), false);
           } else if (starting_square == "h8") {
             self
               .castling
-              .insert((Color::Black, Castling::KINGSIDE), false);
+              .insert((Color::Black, Castling::Kingside), false);
           }
         }
         Color::White => {
           if (starting_square == "a1") {
             self
               .castling
-              .insert((Color::White, Castling::QUEENSIDE), false);
+              .insert((Color::White, Castling::Queenside), false);
           } else if (starting_square == "h1") {
             self
               .castling
-              .insert((Color::White, Castling::KINGSIDE), false);
+              .insert((Color::White, Castling::Kingside), false);
           }
         }
       }
@@ -1222,8 +1220,8 @@ impl ChessBoard {
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 enum Castling {
-  QUEENSIDE,
-  KINGSIDE,
+  Queenside,
+  Kingside,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

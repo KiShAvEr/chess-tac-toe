@@ -38,13 +38,17 @@ struct Ongoing {
   game: HelperToe,
 }
 
+type PlayerJoinData = (Uuid, Sender<Result<JoinResponse, Status>>);
+
+type LobbyData = (Uuid, Sender<Result<MakeLobbyResponse, Status>>);
+
 #[derive(Debug, Default)]
 struct GameService {
-  q: Arc<Mutex<Vec<(Uuid, Sender<Result<JoinResponse, Status>>)>>>,
+  q: Arc<Mutex<Vec<PlayerJoinData>>>,
   receivers: Arc<DashMap<Uuid, Sender<Result<SubscribeBoardResponse, Status>>>>,
   game_ids: Arc<DashMap<Uuid, Uuid>>,
   games: Arc<DashMap<Uuid, Ongoing>>,
-  lobbies: Arc<DashMap<String, (Uuid, Sender<Result<MakeLobbyResponse, Status>>)>>,
+  lobbies: Arc<DashMap<String, LobbyData>>,
 }
 
 #[tonic::async_trait]

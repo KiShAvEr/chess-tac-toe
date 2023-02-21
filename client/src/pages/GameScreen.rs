@@ -1,7 +1,7 @@
 use std::{sync::Arc};
 
 use dioxus::prelude::*;
-use dioxus_desktop::{use_window, tao::clipboard};
+use dioxus_desktop::{tao::clipboard};
 use dioxus_router::{use_router, use_route};
 use helpers::chesstactoe::{game_client::GameClient, JoinRequest, JoinLobbyRequest, MakeLobbyRequest};
 
@@ -46,10 +46,10 @@ pub fn GameScreen(cx: Scope) -> Element {
                 utils::set_uuid(&response.join_response.unwrap().uuid);
                 set_invite_code(Some(response.room_id))
               }
-              return Ok(())
+              Ok(())
             },
             Err(er) => {
-              return Err(er)
+              Err(er)
             }
           }
 
@@ -67,10 +67,10 @@ pub fn GameScreen(cx: Scope) -> Element {
               while let Some(response) = res.message().await.unwrap() {
                 utils::set_uuid(&response.uuid)
               }
-              return Ok(())
+              Ok(())
             },
             Err(er) => {
-              return Err(er)
+              Err(er)
             }
           }
         }
