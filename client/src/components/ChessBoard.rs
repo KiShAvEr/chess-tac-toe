@@ -342,6 +342,7 @@ pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
               let name = name.clone();
               rsx!(
                 img {
+                  class: "piece-image",
                   src: "{src}",
                   onclick: move |_| promote(selected, cx.props.chess, ct, PromotionData{ promotion_square, promotin }, &name),
                 }
@@ -350,27 +351,27 @@ pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
           }}},
           false => rsx!(""),
         },
-        board.iter().enumerate().map(|(col_idx, col)| {
+        board.iter().enumerate().map(|(row_idx, row)| {
             let map = IMAGES.clone();
             rsx!(
                 div {
-                    class: "chess-col",
-                    col.iter().enumerate().map(|(cell_idx, cell)| {
+                    class: "chess-row",
+                    row.iter().enumerate().map(|(cell_idx, cell)| {
                         let piece = match cell {
                             Some(piece) => format!("{}{}", piece.color, piece.name),
                             None => "".to_owned()
                         };
-                        let real_col = if cx.props.side == Color::White {7-col_idx} else {col_idx};
-                        let real_row = if cx.props.side == Color::White {cell_idx} else {7-cell_idx};
+                        let real_row = if cx.props.side == Color::White {7-row_idx} else {row_idx};
+                        let real_col = if cx.props.side == Color::White {cell_idx} else {7-cell_idx};
                         let valid_move = if selected.is_some() && VALID_MOVES.get(if piece_name.is_empty() {"P"} else {piece_name}).unwrap().iter().any(|la_move| {
                             let square = selected.unwrap();
-                            square.0.saturating_add_signed(la_move.0) == real_col && square.1.saturating_add_signed(la_move.1) == real_row
+                            square.0.saturating_add_signed(la_move.0) == real_row && square.1.saturating_add_signed(la_move.1) == real_col
                         }) {
-                            let end_tile = ChessBoard::get_tile((real_col, real_row)).unwrap();
+                            let end_tile = ChessBoard::get_tile((real_row, real_col)).unwrap();
 
                             let starting_tile = ChessBoard::get_tile(selected.unwrap()).unwrap();
 
-                            let x = if cell.is_some() || piece_name.is_empty() && cx.props.chess.en_passant == Some((real_col, real_row)) {
+                            let x = if cell.is_some() || piece_name.is_empty() && cx.props.chess.en_passant == Some((real_row, real_col)) {
                                 "x"
                             } else {
                               ""
@@ -412,14 +413,14 @@ pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
                                     ChessBoard::get_data_from_move(move_str).unwrap()
                                 };
 
-                                (real_col == start.0 && real_row == start.1) || (real_col == end.0 && real_row == end.1)
+                                (real_row == start.0 && real_col == start.1) || (real_row == end.0 && real_col == end.1)
                             },
                             None => false
                         };
 
                         let class = format!("chess-cell {} {} {} {}", 
-                            if (col_idx+cell_idx)%2==0 {"light"} else {"dark"}, 
-                            if selected.is_some() && selected.unwrap().0 == real_col && selected.unwrap().1 == real_row {"selected"} else {""},
+                            if (row_idx+cell_idx)%2==0 {"light"} else {"dark"}, 
+                            if selected.is_some() && selected.unwrap().0 == real_row && selected.unwrap().1 == real_col {"selected"} else {""},
                             valid_move,
                             if is_last_board && is_last_move {"last"} else {""}
                         );
@@ -430,7 +431,7 @@ pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
                                     class: "{class}",
                                     onclick: move |ev| { if let Some(onclick) = cx.props.onclick.as_ref() {
                                         onclick.call(ev.clone());
-                                        }; on_piece_click(ev, (real_col, real_row), selected, cx.props.chess, cx.props.side, ct, PromotionData { promotin, promotion_square })},
+                                        }; on_piece_click(ev, (real_row, real_col), selected, cx.props.chess, cx.props.side, ct, PromotionData { promotin, promotion_square })},
                                     img {
                                         src: "{src}",
                                         height: "100%",
@@ -445,7 +446,7 @@ pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
                                     class: "{class}", 
                                     onclick: move |ev| {if let Some(onclick) = cx.props.onclick.as_ref() {
                                         onclick.call(ev.clone());
-                                    }; on_click(ev, (real_col, real_row), selected, cx.props.chess, cx.props.side, ct, PromotionData { promotin, promotion_square })},
+                                    }; on_click(ev, (real_row, real_col), selected, cx.props.chess, cx.props.side, ct, PromotionData { promotin, promotion_square })},
                                 }
                             )
                         }

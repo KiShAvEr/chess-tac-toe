@@ -13,12 +13,12 @@
   flex: 1;
   flex-direction: column;
   aspect-ratio: 1/8 !important;
-  width: calc(32vmin-1px);
+  width: 32vmin;
   height: 96vmin;
 }
 
 .tic-cell {
-  border: 1px solid black;
+  outline: 0.25vmin solid black;
   height: auto;
   width: auto;
   aspect-ratio: 1 !important;

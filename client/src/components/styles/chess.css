@@ -8,7 +8,7 @@
   position: relative;
 }
 
-.chess-col {
+.chess-row {
   display: flex;
   flex: 1;
   flex-direction: row;
@@ -16,18 +16,18 @@
 
 .chess-cell {
   flex: 1;
-  border: 1px solid black;
+  outline: 0.175vmin solid black;
   aspect-ratio: 1 !important;
   word-break: normal;
   font-size: 0.1%;
   overflow: hidden;
 }
 
-:not(.tic-cell)>.chess-container>.chess-col>.chess-cell.dark {
+:not(.tic-cell)>.chess-container>.chess-row>.chess-cell.dark {
   background-color: darkgrey;
 }
 
-:not(.tic-cell)>.chess-container>.chess-col>.chess-cell.light {
+:not(.tic-cell)>.chess-container>.chess-row>.chess-cell.light {
   background-color: white;
 }
 
@@ -54,4 +54,10 @@
   transform: translate(-50%, -50%);
   display: flex;
   flex-direction: row;
+}
+
+.piece_image {
+  width: 4vmin;
+  height: 4vmin;
+  object-fit: contain;
 }
