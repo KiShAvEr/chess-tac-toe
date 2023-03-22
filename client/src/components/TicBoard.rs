@@ -67,24 +67,22 @@ pub fn TicBoard(cx: Scope) -> Element {
   match board.get() {
     Some(board) => match selected_board.get() {
         Some(board_num) => cx.render(rsx!{
-          div {
-            class: "board-view",
-            div {
-              onclick: |_| {selected_board.set(None)},
-              class: "back-icon",
-              Icon {
-                width: 50,
-                height: 50,
-                icon: IoArrowBack,
-              },
+            div { class: "board-view",
+                div { onclick: |_| { selected_board.set(None) }, class: "back-icon",
+                    Icon { width: 50, height: 50, icon: IoArrowBack }
+                }
+                ChessBoard {
+                    last: Color::from_i32(1 - **next).unwrap(),
+                    side: Color::from_i32(**side).unwrap(),
+                    chess: &board.chesses[board_num / 3][board_num % 3],
+                    board_num: (*board_num).try_into().unwrap(),
+                    last_move: (*last_move).to_string()
+                }
             }
-            ChessBoard {last: Color::from_i32(1-**next).unwrap(), side: Color::from_i32(**side).unwrap(), chess: &board.chesses[board_num/3][board_num%3], board_num: (*board_num).try_into().unwrap(), last_move: (*last_move).to_string()}
-          }
         }),
         None => cx.render(rsx!{
-          div {
-            class: "tic-container",
-            (0..3).map(|col| {
+            div { class: "tic-container",
+                (0..3).map(|col| {
               let o_src = O.clone();
               let x_src = X.clone();
               rsx!{
@@ -122,13 +120,9 @@ pub fn TicBoard(cx: Scope) -> Element {
                 }
               }
             })
-          }
+            }
         }),
     } ,
-    None => cx.render(rsx!{
-      div {
-        "Loading shit"
-      }
-    }),
+    None => cx.render(rsx!{ div { "Loading shit" } }),
   }
 }

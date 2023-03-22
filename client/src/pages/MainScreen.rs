@@ -11,19 +11,11 @@ pub fn MainScreen(cx: Scope) -> Element {
   let set_lobby_code = lobby_code.setter();
 
   cx.render(rsx! {
-      div {
-          class: "main-menu",
-          button {
-              onclick: move |_| { router.navigate_to("/game") },
-              "Against random opponent"
-          },
-          button {
-              onclick: move |_| { opened.set(true) }, "Join lobby"
-          },
-          button {
-            onclick: move |_| { router.navigate_to("/game/new") }, "Make lobby"
-          }
-          match opened.get() {
+    div { class: "main-menu",
+        button { onclick: move |_| { router.navigate_to("/game") }, "Against random opponent" }
+        button { onclick: move |_| { opened.set(true) }, "Join lobby" }
+        button { onclick: move |_| { router.navigate_to("/game/new") }, "Make lobby" }
+        match opened.get() {
             true => rsx!{dialog { 
                 class: "join-lobby-dialog",
                 open: true, 
@@ -49,6 +41,6 @@ pub fn MainScreen(cx: Scope) -> Element {
             }},
             false => rsx!("")
           }
-      }
+    }
   })
 }

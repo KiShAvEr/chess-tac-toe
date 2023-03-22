@@ -3,7 +3,10 @@
 use std::sync::Arc;
 
 use dioxus::prelude::*;
-use dioxus_desktop::{Config, WindowBuilder, tao::{menu::{MenuBar, MenuItem}}, use_window};
+use dioxus_desktop::{
+  tao::menu::{MenuBar, MenuItem},
+  use_window, Config, WindowBuilder,
+};
 use dioxus_router::{Route, Router};
 use helpers::chesstactoe::game_client::GameClient;
 use include_dir::{include_dir, File};
@@ -27,7 +30,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
   menu.add_submenu("Edit", true, edit);
 
-  let config = Config::default().with_window(WindowBuilder::default().with_title("Chess-Tac-Toe").with_menu(menu));
+  let config = Config::default().with_window(
+    WindowBuilder::default()
+      .with_title("Chess-Tac-Toe")
+      .with_menu(menu),
+  );
 
   dioxus_desktop::launch_cfg(app, config);
   Ok(())
@@ -42,8 +49,7 @@ fn app(cx: Scope) -> Element {
     .files()
     .fold("".to_owned(), |last: String, next: &File| {
       last + next.contents_utf8().unwrap()
-    }
-  );
+    });
 
   match client.value() {
     Some(client) => match client {
@@ -52,9 +58,9 @@ fn app(cx: Scope) -> Element {
 
         cx.render(rsx! {
             style { "{style}" }
-            Router {
-                Route { to: "/", MainScreen {} },
-                Route { to: "/game", GameScreen {} },
+            Router { 
+                Route { to: "/", MainScreen {} }
+                Route { to: "/game", GameScreen {} }
                 Route { to: "/game/new", GameScreen {} }
                 Route { to: "/game/:id", GameScreen {} }
             }

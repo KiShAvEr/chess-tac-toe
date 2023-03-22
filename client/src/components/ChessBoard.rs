@@ -1,11 +1,11 @@
 use std::{collections::HashMap, sync::Arc};
 
 use base64::Engine;
-use dioxus::{prelude::*};
+use dioxus::prelude::*;
 use futures::stream::StreamExt;
 use helpers::{
   chesstactoe::{game_client::GameClient, Color, MovePieceRequest},
-  ChessBoard, PieceName,
+  ChessBoard, Coordinates, PieceName,
 };
 use include_dir::{include_dir, Dir};
 use once_cell::sync::Lazy;
@@ -19,25 +19,17 @@ fn on_piece_click(
   chess: &ChessBoard,
   side: Color,
   ct: &Coroutine<String>,
-  promotion_data: PromotionData
+  promotion_data: PromotionData,
 ) {
   if selected.is_none() {
     selected.modify(|_| Some(square))
   }
-  on_click(
-    ev,
-    square,
-    selected,
-    chess,
-    side,
-    ct,
-    promotion_data
-  );
+  on_click(ev, square, selected, chess, side, ct, promotion_data);
 }
 
 struct PromotionData<'a> {
   promotin: &'a UseState<bool>,
-  promotion_square: &'a UseState<Option<(usize, usize)>>
+  promotion_square: &'a UseState<Option<(usize, usize)>>,
 }
 
 fn on_click(
@@ -47,15 +39,19 @@ fn on_click(
   chess: &ChessBoard,
   side: Color,
   ct: &Coroutine<String>,
-  PromotionData { promotin, promotion_square }: PromotionData
+  PromotionData {
+    promotin,
+    promotion_square,
+  }: PromotionData,
 ) {
-
   if selected.is_none() {
     return;
   }
   promotin.set(false);
 
-  let attacked_piece = chess.board[square.0][square.1];
+  let square = Coordinates::new(square);
+
+  let attacked_piece = chess.board[square.row][square.col];
   let selected_piece = chess.board[selected.unwrap().0][selected.unwrap().1];
   let x = match attacked_piece {
     Some(_) => "x",
@@ -74,8 +70,10 @@ fn on_click(
     PieceName::PAWN => "",
   };
 
+  let selected_coords = Coordinates::new(selected.unwrap());
+
   let end_tile = ChessBoard::get_tile(square).unwrap();
-  let start_tile = ChessBoard::get_tile(selected.unwrap()).unwrap();
+  let start_tile = ChessBoard::get_tile(selected_coords).unwrap();
 
   eprintln!("{piece_name}{start_tile}{x}{end_tile}");
   eprintln!("{:?}", chess.en_passant);
@@ -95,10 +93,10 @@ fn on_click(
   }
 
   if piece_name.is_empty()
-    && ((side == Color::White && square.0 == 7) || (side == Color::Black && square.0 == 0))
+    && ((side == Color::White && square.row == 7) || (side == Color::Black && square.row == 0))
   {
     promotin.set(true);
-    promotion_square.set(Some((square.0, square.1)));
+    promotion_square.set(Some((square.row, square.col)));
     return;
   }
 
@@ -123,7 +121,10 @@ fn promote(
   selected: &UseState<Option<(usize, usize)>>,
   chess: &ChessBoard,
   ct: &Coroutine<String>,
-  PromotionData { promotin, promotion_square }: PromotionData,
+  PromotionData {
+    promotin,
+    promotion_square,
+  }: PromotionData,
   target_piece: &str,
 ) {
   if promotion_square.is_none() {
@@ -151,8 +152,14 @@ fn promote(
     _ => panic!("mifaszstas {}", target_piece),
   };
 
-  let end_tile = ChessBoard::get_tile(promotion_square_uw).unwrap();
-  let start_tile = ChessBoard::get_tile(selected.unwrap()).unwrap();
+  let selected_coords = Coordinates::new(selected.unwrap());
+
+  let end_tile = ChessBoard::get_tile(Coordinates {
+    row: promotion_square_uw.0,
+    col: promotion_square_uw.1,
+  })
+  .unwrap();
+  let start_tile = ChessBoard::get_tile(selected_coords).unwrap();
 
   eprintln!("{piece_name}{start_tile}{x}{end_tile}{target_name}");
 
@@ -332,9 +339,7 @@ pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
   let promotion_square = use_state(cx, || None::<(usize, usize)>);
 
   cx.render(rsx!{
-    div {
-        class: "chess-container",
-        onclick: |_| promotin.set(false),
+    div { class: "chess-container", onclick: |_| promotin.set(false),
         match promotin.get() {
           true => rsx!{dialog {class: "promotin-dialog" , open: *promotin.get(), rsx!{
             valid_promotions.iter().map(|name| {
@@ -367,11 +372,11 @@ pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
                             let square = selected.unwrap();
                             square.0.saturating_add_signed(la_move.0) == real_row && square.1.saturating_add_signed(la_move.1) == real_col
                         }) {
-                            let end_tile = ChessBoard::get_tile((real_row, real_col)).unwrap();
+                            let end_tile = ChessBoard::get_tile(Coordinates::new((real_row, real_col))).unwrap();
 
-                            let starting_tile = ChessBoard::get_tile(selected.unwrap()).unwrap();
+                            let starting_tile = ChessBoard::get_tile(Coordinates::new(selected.unwrap())).unwrap();
 
-                            let x = if cell.is_some() || piece_name.is_empty() && cx.props.chess.en_passant == Some((real_row, real_col)) {
+                            let x = if cell.is_some() || piece_name.is_empty() && cx.props.chess.en_passant == Some(Coordinates::new((real_row, real_col))) {
                                 "x"
                             } else {
                               ""
@@ -413,7 +418,7 @@ pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
                                     ChessBoard::get_data_from_move(move_str).unwrap()
                                 };
 
-                                (real_row == start.0 && real_col == start.1) || (real_row == end.0 && real_col == end.1)
+                                (real_row == start.row && real_col == start.col) || (real_row == end.row && real_col == end.col)
                             },
                             None => false
                         };
@@ -454,6 +459,6 @@ pub fn ChessBoard<'a>(cx: Scope<'a, ChessProps>) -> Element<'a> {
                 }
             )
         })
-      }
+    }
     })
 }

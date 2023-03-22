@@ -7,6 +7,7 @@ use helpers::chesstactoe::{
   MidGameRequest, MovePieceRequest, MovePieceResponse, MoveResult, SubscribeBoardRequest,
   SubscribeBoardResponse, TakeBackRequest, TakeBackResponse, TicTacToe,
 };
+use helpers::Coordinates;
 use helpers::{
   chesstactoe::{
     chess::EndResult,
@@ -96,7 +97,7 @@ impl Game for GameService {
 
     game
       .game
-      .make_move(requested_board, &request.alg)
+      .make_move(Coordinates::new(requested_board), &request.alg)
       .map_err(|e| Status::internal(e.to_string()))?;
 
     let chesses = &game.game.chesses;
@@ -161,15 +162,15 @@ impl Game for GameService {
           black: uuid,
           game: HelperToe::default(),
         };
-  
+
         let game_uuid = Uuid::new_v4();
-  
+
         self.games.insert(game_uuid, game);
-  
+
         self.game_ids.insert(uuid, game_uuid);
-  
+
         self.game_ids.insert(white.0, game_uuid);
-  
+
         white
           .1
           .send(Ok(JoinResponse {
@@ -178,20 +179,20 @@ impl Game for GameService {
           }))
           .await
           .unwrap_or(());
-  
+
         let (mut tx, rx) = mpsc::channel(4);
-  
+
         tx.send(Ok(JoinResponse {
           status: GameStatus::Ready as i32,
           uuid: uuid.to_string(),
         }))
         .await
         .unwrap();
-  
+
         tx.closed();
-  
+
         white.1.closed();
-  
+
         return Ok(Response::new(ReceiverStream::new(rx)));
       }
       eprintln!("Closed")
@@ -310,7 +311,7 @@ impl Game for GameService {
 
     Ok(Response::new(ReceiverStream::new(rx)))
   }
-  
+
   type JoinLobbyStream = Self::JoinStream;
 
   async fn join_lobby(
@@ -325,7 +326,7 @@ impl Game for GameService {
       let join_uuid = Uuid::new_v4();
 
       if white.1.is_closed() {
-        return Err(Status::not_found("Lobby does not exist"))
+        return Err(Status::not_found("Lobby does not exist"));
       }
 
       let game: Ongoing = Ongoing {
@@ -361,7 +362,8 @@ impl Game for GameService {
       tx.send(Ok(JoinResponse {
         status: GameStatus::Ready as i32,
         uuid: join_uuid.to_string(),
-      })).await;
+      }))
+      .await;
 
       tx.closed();
 

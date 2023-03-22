@@ -93,7 +93,20 @@ impl Display for TicError {
 
 impl std::error::Error for TicError {}
 
-type Coordinates = (usize, usize);
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct Coordinates {
+  pub row: usize,
+  pub col: usize,
+}
+
+impl Coordinates {
+  pub fn new(coords: (usize, usize)) -> Self {
+    Coordinates {
+      row: coords.0,
+      col: coords.1,
+    }
+  }
+}
 
 impl TicTacToe {
   pub fn validate_move(
@@ -113,7 +126,7 @@ impl TicTacToe {
       return Err(Box::new(MoveError::InvalidMove));
     }
 
-    self.chesses[board.0][board.1].make_move(alg, self.next)?;
+    self.chesses[board.col][board.row].make_move(alg, self.next)?;
 
     self.next = if self.next == Color::White {
       Color::Black
@@ -186,11 +199,11 @@ impl TicTacToe {
   }
 
   pub fn get_board(&self, board: Coordinates) -> Result<&ChessBoard, TicError> {
-    if (board.0 > 2 || board.1 > 2) {
+    if (board.col > 2 || board.row > 2) {
       return Err(TicError::InvalidCoords);
     }
 
-    Ok(&self.chesses[board.0][board.1])
+    Ok(&self.chesses[board.col][board.row])
   }
 }
 
@@ -223,9 +236,8 @@ impl From<chesstactoe::TicTacToe> for TicTacToe {
   fn from(value: chesstactoe::TicTacToe) -> TicTacToe {
     let mut chesses = TicTacToe::default().chesses;
 
-    for i in 0..3 {
-    }
-    
+    for i in 0..3 {}
+
     for (i, row) in chesses.iter_mut().enumerate() {
       for (j, chess) in row.iter_mut().enumerate().take(3) {
         *chess = ChessBoard::parse_fen(&value.chesses[i * 3 + j].fen).unwrap()
@@ -439,7 +451,7 @@ impl ChessBoard {
       return Err(FenError::InvalidFormat);
     }
 
-    let column = match &str[0..1] {
+    let col = match &str[0..1] {
       "a" => 0,
       "b" => 1,
       "c" => 2,
@@ -451,19 +463,19 @@ impl ChessBoard {
       _ => return Err(FenError::InvalidSquare),
     };
 
-    let row = str[1..2].parse::<u8>().unwrap() - 1;
+    let row = str[1..2].parse::<usize>().unwrap() - 1;
 
-    Ok((row as usize, column as usize))
+    Ok(Coordinates { row, col })
   }
 
   pub fn get_tile(square: Coordinates) -> Result<String, FenError> {
     let chars = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 
-    if (square.0 > 7 || square.1 > 7) {
+    if (square.row > 7 || square.col > 7) {
       return Err(FenError::InvalidSquare);
     }
 
-    Ok(chars[square.1].to_string() + &(square.0 + 1).to_string())
+    Ok(chars[square.col].to_string() + &(square.row + 1).to_string())
   }
 
   pub fn get_data_from_move(
@@ -541,26 +553,26 @@ impl ChessBoard {
         _ => return Err(Box::new(MoveError::InvalidMove)),
       };
 
-      if (self.board[rook_square.0][rook_square.1]
+      if (self.board[rook_square.row][rook_square.col]
         == Some(Piece {
           color: next,
           name: PieceName::ROOK,
         })
-        && self.board[king_square.0][king_square.1]
+        && self.board[king_square.row][king_square.col]
           == Some(Piece {
             color: next,
             name: PieceName::KING,
           }))
         && (between_squares
           .iter()
-          .all(|square| self.board[square.0][square.1].is_none()))
+          .all(|square| self.board[square.row][square.col].is_none()))
         && (!self.is_checked(&next)
           && between_squares.iter().all(|square| {
             let mut fake_board = self.clone();
             let coords = king_square;
-            fake_board.board[coords.0][coords.1] = None;
+            fake_board.board[coords.row][coords.col] = None;
 
-            fake_board.board[square.0][square.1] = Some(Piece {
+            fake_board.board[square.row][square.col] = Some(Piece {
               color: next,
               name: PieceName::KING,
             });
@@ -581,19 +593,19 @@ impl ChessBoard {
     };
 
     if (!move_string.contains('x')) {
-      if self.board[end_coords.0][end_coords.1].is_some() {
+      if self.board[end_coords.row][end_coords.col].is_some() {
         return Ok(false);
       }
     } else {
-      match self.board[end_coords.0][end_coords.1] {
+      match self.board[end_coords.row][end_coords.col] {
         Some(piece) if piece.color == next => return Ok(false),
         None if piece.name != PieceName::PAWN => return Ok(false),
         _ => {}
       }
     }
 
-    if (self.board[starting_coords.0][starting_coords.1].is_none()
-      || self.board[starting_coords.0][starting_coords.1].unwrap() != piece)
+    if (self.board[starting_coords.row][starting_coords.col].is_none()
+      || self.board[starting_coords.row][starting_coords.col].unwrap() != piece)
     {
       return Ok(false);
     }
@@ -608,10 +620,10 @@ impl ChessBoard {
       }
       PieceName::KNIGHT => {
         return Ok(
-          starting_coords.0.abs_diff(end_coords.0) == 1
-            && starting_coords.1.abs_diff(end_coords.1) == 2
-            || (starting_coords.0.abs_diff(end_coords.0) == 2
-              && starting_coords.1.abs_diff(end_coords.1) == 1),
+          starting_coords.row.abs_diff(end_coords.row) == 1
+            && starting_coords.col.abs_diff(end_coords.col) == 2
+            || (starting_coords.row.abs_diff(end_coords.row) == 2
+              && starting_coords.col.abs_diff(end_coords.col) == 1),
         )
       }
       PieceName::BISHOP => {
@@ -628,8 +640,8 @@ impl ChessBoard {
         )
       }
       PieceName::KING => {
-        let diff = (starting_coords.0.abs_diff(end_coords.0) == 1
-          || starting_coords.1.abs_diff(end_coords.1) == 1);
+        let diff = (starting_coords.row.abs_diff(end_coords.row) == 1
+          || starting_coords.col.abs_diff(end_coords.col) == 1);
         if diff {
           return Ok(
             ChessBoard::validate_bishop(&starting_coords, &end_coords, &self.board)
@@ -640,12 +652,12 @@ impl ChessBoard {
       }
       PieceName::PAWN => {
         let double = match next {
-          Color::Black => starting_coords.0 == 6 && end_coords.0 == 4,
-          Color::White => starting_coords.0 == 1 && end_coords.0 == 3,
+          Color::Black => starting_coords.row == 6 && end_coords.row == 4,
+          Color::White => starting_coords.row == 1 && end_coords.row == 3,
         };
         let single = match next {
-          Color::Black => starting_coords.0.saturating_sub(end_coords.0) == 1,
-          Color::White => end_coords.0.saturating_sub(starting_coords.0) == 1,
+          Color::Black => starting_coords.row.saturating_sub(end_coords.row) == 1,
+          Color::White => end_coords.row.saturating_sub(starting_coords.row) == 1,
         };
         let en_passant = match next {
           Color::Black => self.en_passant == Some(end_coords),
@@ -657,25 +669,26 @@ impl ChessBoard {
         if move_string.contains('x') {
           let diagonal_move = match next {
             Color::Black => {
-              starting_coords.0.saturating_sub(end_coords.0) == 1
-                && starting_coords.1.abs_diff(end_coords.1) == 1
+              starting_coords.row.saturating_sub(end_coords.row) == 1
+                && starting_coords.col.abs_diff(end_coords.col) == 1
             }
             Color::White => {
-              end_coords.0.saturating_sub(starting_coords.0) == 1
-                && starting_coords.1.abs_diff(end_coords.1) == 1
+              end_coords.row.saturating_sub(starting_coords.row) == 1
+                && starting_coords.col.abs_diff(end_coords.col) == 1
             }
           };
 
-          valid = diagonal_move && (self.board[end_coords.0][end_coords.1].is_some() || en_passant);
-        } else if single && starting_coords.1 == end_coords.1 {
-          valid = self.board[end_coords.0][end_coords.1].is_none();
-        } else if double && starting_coords.1 == end_coords.1 {
-          valid = self.board[end_coords.0][end_coords.1].is_none()
-            && ((next == Color::Black && self.board[5][starting_coords.1].is_none())
-              || (next == Color::White && self.board[2][starting_coords.1].is_none()));
+          valid =
+            diagonal_move && (self.board[end_coords.row][end_coords.col].is_some() || en_passant);
+        } else if single && starting_coords.col == end_coords.col {
+          valid = self.board[end_coords.row][end_coords.col].is_none();
+        } else if double && starting_coords.col == end_coords.col {
+          valid = self.board[end_coords.row][end_coords.col].is_none()
+            && ((next == Color::Black && self.board[5][starting_coords.col].is_none())
+              || (next == Color::White && self.board[2][starting_coords.col].is_none()));
         }
 
-        if end_coords.0 == 0 || end_coords.0 == 7 {
+        if end_coords.row == 0 || end_coords.row == 7 {
           let endings = ["K", "R", "B", "N", "Q"];
           if endings.contains(&move_string.chars().last().unwrap().to_string().as_str()) {
             return Ok(valid);
@@ -724,6 +737,11 @@ impl ChessBoard {
         .unwrap(),
     );
 
+    let king_position = Coordinates {
+      row: king_position.0,
+      col: king_position.1,
+    };
+
     fn check_the_diagonals(
       board: &[[Option<Piece>; 8]; 8],
       color: &Color,
@@ -731,18 +749,23 @@ impl ChessBoard {
     ) -> bool {
       let directions = [(1, 1), (-1, 1), (1, -1), (-1, -1)];
       for &(dx, dy) in &directions {
-        let mut x = king_position.0 as i8 + dx;
-        let mut y = king_position.1 as i8 + dy;
+        let mut x = king_position.row as i8 + dx;
+        let mut y = king_position.col as i8 + dy;
         while (0..8).contains(&x) && (0..8).contains(&y) {
           let piece = board[x as usize][y as usize];
           if let Some(other_piece) = piece {
-            if other_piece.color != *color && (other_piece.name == PieceName::BISHOP || other_piece.name == PieceName::QUEEN || dx == 1
-              && dy == 1
-              && other_piece.name == PieceName::PAWN
-              && *color == Color::White || dx == -1
-              && dy == 1
-              && other_piece.name == PieceName::PAWN
-              && *color == Color::Black) {
+            if other_piece.color != *color
+              && (other_piece.name == PieceName::BISHOP
+                || other_piece.name == PieceName::QUEEN
+                || dx == 1
+                  && dy == 1
+                  && other_piece.name == PieceName::PAWN
+                  && *color == Color::White
+                || dx == -1
+                  && dy == 1
+                  && other_piece.name == PieceName::PAWN
+                  && *color == Color::Black)
+            {
               return false;
             }
             break;
@@ -774,16 +797,16 @@ impl ChessBoard {
               break;
             }
             None => {
-              if pos.0 as i8 + x < 0
-                || pos.0 as i8 + x > 7
-                || pos.1 as i8 + y < 0
-                || pos.1 as i8 + y > 7
+              if pos.row as i8 + x < 0
+                || pos.row as i8 + x > 7
+                || pos.col as i8 + y < 0
+                || pos.col as i8 + y > 7
               {
                 break;
               }
-              pos.0 = (pos.0 as i8 + x) as usize;
-              pos.1 = (pos.1 as i8 + y) as usize;
-              piece = board[pos.0][pos.1]
+              pos.row = (pos.row as i8 + x) as usize;
+              pos.col = (pos.col as i8 + y) as usize;
+              piece = board[pos.row][pos.col]
             }
           }
         }
@@ -812,8 +835,8 @@ impl ChessBoard {
       // Iterate through the possible positions and check if any of them
       // contain a knight of the opposite color
       for (row_offset, col_offset) in moves.iter() {
-        let row = (king_position.0 as isize) + row_offset;
-        let col = (king_position.1 as isize) + col_offset;
+        let row = (king_position.row as isize) + row_offset;
+        let col = (king_position.col as isize) + col_offset;
 
         // Make sure the position is within the bounds of the board
         if !(0..=7).contains(&row) || !(0..=7).contains(&col) {
@@ -846,12 +869,12 @@ impl ChessBoard {
     end_coords: &Coordinates,
     board: &[[Option<Piece>; 8]; 8],
   ) -> bool {
-    let row_diff = starting_coords.0 as i32 - end_coords.0 as i32;
-    let col_diff = starting_coords.1 as i32 - end_coords.1 as i32;
+    let row_diff = starting_coords.row as i32 - end_coords.row as i32;
+    let col_diff = starting_coords.col as i32 - end_coords.col as i32;
 
     if row_diff.abs() != col_diff.abs()
-      || starting_coords.0 == end_coords.0
-      || starting_coords.1 == end_coords.1
+      || starting_coords.row == end_coords.row
+      || starting_coords.col == end_coords.col
     {
       return false;
     }
@@ -866,9 +889,9 @@ impl ChessBoard {
       (1, 1)
     };
 
-    let mut row = starting_coords.0 as i32 + row_dir;
-    let mut col = starting_coords.1 as i32 + col_dir;
-    while row != end_coords.0 as i32 && col != end_coords.1 as i32 {
+    let mut row = starting_coords.row as i32 + row_dir;
+    let mut col = starting_coords.col as i32 + col_dir;
+    while row != end_coords.row as i32 && col != end_coords.col as i32 {
       if board[row as usize][col as usize].is_some() {
         return false;
       }
@@ -883,24 +906,24 @@ impl ChessBoard {
     end_coords: &Coordinates,
     board: &[[Option<Piece>; 8]; 8],
   ) -> bool {
-    if starting_coords.0 == end_coords.0 || starting_coords.1 == end_coords.1 {
-      let (min, max) = if starting_coords.0 == end_coords.0 {
+    if starting_coords.row == end_coords.row || starting_coords.col == end_coords.col {
+      let (min, max) = if starting_coords.row == end_coords.row {
         (
-          std::cmp::min(starting_coords.1, end_coords.1),
-          std::cmp::max(starting_coords.1, end_coords.1),
+          std::cmp::min(starting_coords.col, end_coords.col),
+          std::cmp::max(starting_coords.col, end_coords.col),
         )
       } else {
         (
-          std::cmp::min(starting_coords.0, end_coords.0),
-          std::cmp::max(starting_coords.0, end_coords.0),
+          std::cmp::min(starting_coords.row, end_coords.row),
+          std::cmp::max(starting_coords.row, end_coords.row),
         )
       };
       for i in min + 1..max {
-        if starting_coords.0 == end_coords.0 {
-          if board[starting_coords.0][i].is_some() {
+        if starting_coords.row == end_coords.row {
+          if board[starting_coords.row][i].is_some() {
             return false;
           }
-        } else if board[i][starting_coords.1].is_some() {
+        } else if board[i][starting_coords.col].is_some() {
           return false;
         }
       }
@@ -1062,13 +1085,13 @@ impl ChessBoard {
         _ => return Err(Box::new(MoveError::InvalidMove)),
       };
 
-      self.board[king_old.0][king_old.1] = None;
-      self.board[king_new.0][king_new.1] = Some(Piece {
+      self.board[king_old.row][king_old.col] = None;
+      self.board[king_new.row][king_new.col] = Some(Piece {
         color: next,
         name: PieceName::KING,
       });
-      self.board[rook_old.0][rook_old.1] = None;
-      self.board[rook_new.0][rook_new.1] = Some(Piece {
+      self.board[rook_old.row][rook_old.col] = None;
+      self.board[rook_new.row][rook_new.col] = Some(Piece {
         color: next,
         name: PieceName::ROOK,
       });
@@ -1103,7 +1126,7 @@ impl ChessBoard {
       Color::White
     };
 
-    if self.board[end_coords.0][end_coords.1].is_some()
+    if self.board[end_coords.row][end_coords.col].is_some()
       && !self.board.iter().any(|row| {
         row.iter().any(|cell| {
           cell.is_some() && cell.unwrap().name == PieceName::KING && cell.unwrap().color == opposite
@@ -1124,13 +1147,13 @@ impl ChessBoard {
         Color::White => -1,
       };
 
-      let faszom = self.board[end_coords.0.checked_add_signed(dir).unwrap()][end_coords.1];
+      let faszom = self.board[end_coords.row.checked_add_signed(dir).unwrap()][end_coords.col];
 
-      self.board[end_coords.0.checked_add_signed(dir).unwrap()][end_coords.1] = None
+      self.board[end_coords.row.checked_add_signed(dir).unwrap()][end_coords.col] = None
     }
-    self.board[starting_coords.0][starting_coords.1] = None;
+    self.board[starting_coords.row][starting_coords.col] = None;
 
-    self.board[end_coords.0][end_coords.1] = Some(piece);
+    self.board[end_coords.row][end_coords.col] = Some(piece);
 
     if (piece.name == PieceName::KING) {
       self.castling.insert((next, Castling::Kingside), false);
@@ -1161,8 +1184,11 @@ impl ChessBoard {
         }
       }
     }
-    if (piece.name == PieceName::PAWN && (starting_coords.0.abs_diff(end_coords.0) == 2)) {
-      self.en_passant = Some(((starting_coords.0 + end_coords.0) / 2, starting_coords.1));
+    if (piece.name == PieceName::PAWN && (starting_coords.row.abs_diff(end_coords.row) == 2)) {
+      self.en_passant = Some(Coordinates {
+        row: (starting_coords.row + end_coords.row) / 2,
+        col: starting_coords.col,
+      });
     } else {
       self.en_passant = None;
     }
@@ -1186,7 +1212,7 @@ impl ChessBoard {
         "B" => PieceName::BISHOP,
         _ => panic!("BRUHHHHH"),
       };
-      self.board[end_coords.0][end_coords.1] = Some(Piece {
+      self.board[end_coords.row][end_coords.col] = Some(Piece {
         name: promoted_name,
         color: piece.color,
       });

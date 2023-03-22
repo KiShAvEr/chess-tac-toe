@@ -3,10 +3,10 @@
 pub mod tests {
   use helpers::{
     chesstactoe::{chess::EndResult, Color},
-    ChessBoard, TicTacToe,
+    ChessBoard, Coordinates, TicTacToe,
   };
 
-  const COORDS: (usize, usize) = (0, 0);
+  const COORDS: Coordinates = Coordinates { row: 0, col: 0 };
 
   fn test_valid_move(alg: &str, res_fen: &str, tic: &mut TicTacToe) {
     println!("{alg}");
@@ -100,7 +100,10 @@ pub mod tests {
       .into_iter()
       .for_each(|(alg, res_fen)| test_valid_move(alg, res_fen, &mut tic));
 
-    assert_eq!(tic.chesses[COORDS.0][COORDS.1].end, EndResult::Draw(true));
+    assert_eq!(
+      tic.chesses[COORDS.row][COORDS.col].end,
+      EndResult::Draw(true)
+    );
 
     let res = tic.make_move(COORDS, "e2e4");
 
@@ -119,8 +122,8 @@ pub mod tests {
     // println!("{:?}", tic.make_move((0, 0), chers_move));
 
     assert!(
-      tic.validate_move((0, 0), chers_move).is_err()
-        || !tic.validate_move((0, 0), chers_move).unwrap()
+      tic.validate_move(COORDS, chers_move).is_err()
+        || !tic.validate_move(COORDS, chers_move).unwrap()
     );
   }
 
@@ -135,8 +138,8 @@ pub mod tests {
     // println!("{:?}", tic.make_move((0, 0), chers_move));
 
     assert!(
-      tic.validate_move((0, 0), chers_move).is_err()
-        || !tic.validate_move((0, 0), chers_move).unwrap()
+      tic.validate_move(COORDS, chers_move).is_err()
+        || !tic.validate_move(COORDS, chers_move).unwrap()
     );
   }
 

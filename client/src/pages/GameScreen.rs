@@ -1,12 +1,14 @@
-use std::{sync::Arc};
+use std::sync::Arc;
 
 use dioxus::prelude::*;
-use dioxus_desktop::{tao::clipboard};
-use dioxus_router::{use_router, use_route};
-use helpers::chesstactoe::{game_client::GameClient, JoinRequest, JoinLobbyRequest, MakeLobbyRequest};
+use dioxus_desktop::tao::clipboard;
+use dioxus_router::{use_route, use_router};
+use helpers::chesstactoe::{
+  game_client::GameClient, JoinLobbyRequest, JoinRequest, MakeLobbyRequest,
+};
 
 use tokio::sync::Mutex;
-use tonic::{transport::Channel};
+use tonic::transport::Channel;
 
 use crate::components::TicBoard::TicBoard;
 
@@ -30,7 +32,6 @@ pub fn GameScreen(cx: Scope) -> Element {
       let set_invite_code = invite_code.setter();
 
       let future = use_future(cx, (), |_| async move {
-        
         let mut client = client.lock().await;
 
         println!("{lobby_code:?}");
@@ -47,20 +48,23 @@ pub fn GameScreen(cx: Scope) -> Element {
                 set_invite_code(Some(response.room_id))
               }
               Ok(())
-            },
-            Err(er) => {
-              Err(er)
             }
+            Err(er) => Err(er),
           }
-
         } else {
           let cli = match &lobby_code {
-            Some(code) => client.join_lobby(JoinLobbyRequest { code: code.to_string() }).await,
-            None => client.join(JoinRequest {}).await
+            Some(code) => {
+              client
+                .join_lobby(JoinLobbyRequest {
+                  code: code.to_string(),
+                })
+                .await
+            }
+            None => client.join(JoinRequest {}).await,
           };
-  
+
           drop(client);
-  
+
           match cli {
             Ok(res) => {
               let mut res = res.into_inner();
@@ -68,14 +72,10 @@ pub fn GameScreen(cx: Scope) -> Element {
                 utils::set_uuid(&response.uuid)
               }
               Ok(())
-            },
-            Err(er) => {
-              Err(er)
             }
+            Err(er) => Err(er),
           }
         }
-
-
       });
 
       match future.value() {
@@ -88,7 +88,7 @@ pub fn GameScreen(cx: Scope) -> Element {
                 // ChessBoard {side: helpers::chesstactoe::Color::White}
               }
             )),
-            Err(_er) => cx.render(rsx!{
+            Err(_er) => cx.render(rsx! {
               div {
                 "Invalid code"
                 button {
@@ -96,10 +96,10 @@ pub fn GameScreen(cx: Scope) -> Element {
                   "Go back to main menu"
                 }
               }
-            })
+            }),
           }
         }
-        None => cx.render(rsx!{"Waiting for opponent", if invite_code.is_some() {
+        None => cx.render(rsx! {"Waiting for opponent", if invite_code.is_some() {
           let invite_code = invite_code.as_ref().unwrap();
           rsx!(div {
             class: "lobby-code",
