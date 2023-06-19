@@ -87,8 +87,8 @@ impl Game for GameService {
     };
 
     let requested_board: (usize, usize) = (
-      (request.board / 3).try_into().unwrap(),
       (request.board % 3).try_into().unwrap(),
+      (request.board / 3).try_into().unwrap(),
     );
 
     if color != game.game.next {
