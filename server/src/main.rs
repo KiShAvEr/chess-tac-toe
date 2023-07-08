@@ -9,12 +9,13 @@ use helpers::chesstactoe::{
 };
 use helpers::Coordinates;
 use helpers::{
+  chess::ChessBoard,
   chesstactoe::{
     chess::EndResult,
     game_server::{Game, GameServer},
     join_response::GameStatus,
   },
-  chess::ChessBoard, tictactoe::{TicError, TicTacToe as HelperToe},
+  tictactoe::{TicError, TicTacToe as HelperToe},
 };
 use std::{collections::HashMap, net::SocketAddr, sync::Arc, time::Duration};
 use tokio::sync::{

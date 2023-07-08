@@ -2,8 +2,10 @@
 
 pub mod tests {
   use helpers::{
+    chess::{ChessBoard, PieceName},
     chesstactoe::{chess::EndResult, Color},
-     Coordinates, tictactoe::TicTacToe, chess::{ChessBoard, PieceName}, FenError,
+    tictactoe::TicTacToe,
+    Coordinates, FenError,
   };
 
   const COORDS: Coordinates = Coordinates::new((0, 0));
@@ -11,7 +13,9 @@ pub mod tests {
   fn test_valid_move(alg: &str, res_fen: &str, tic: &mut TicTacToe) {
     println!("{alg}");
 
-    assert!(tic.validate_move(COORDS, alg).is_ok_and(|is_valid| is_valid));
+    assert!(tic
+      .validate_move(COORDS, alg)
+      .is_ok_and(|is_valid| is_valid));
 
     tic.make_move(COORDS, alg).unwrap();
 
@@ -177,7 +181,7 @@ pub mod tests {
     test_fen(FEN2);
 
     const FEN3: &str = "1K3BQ1/p1P5/5p2/pp3Pp1/6P1/4b3/Pk6/r3n3 w - - 0 1";
-    
+
     test_fen(FEN3);
 
     let random_board = ChessBoard::random();
@@ -187,11 +191,16 @@ pub mod tests {
     let parsed_board = ChessBoard::try_from(fen4).unwrap();
 
     assert_eq!(parsed_board, random_board);
-
   }
 
   fn test_fen(fen: &str) {
-    assert!(ChessBoard::parse_fen(fen).unwrap().to_fen(Color::White).unwrap() == fen);
+    assert_eq!(
+      ChessBoard::parse_fen(fen)
+        .unwrap()
+        .to_fen(Color::White)
+        .unwrap(),
+      fen
+    );
   }
 
   #[test]
@@ -225,7 +234,7 @@ pub mod tests {
       // "Qd1d2",
       // "Qd8d7",
     ];
-    
+
     let the_move = "O-O-O";
 
     tic = TicTacToe::default();
@@ -295,7 +304,7 @@ pub mod tests {
     assert!(tic.make_move(COORDS, the_move).is_err());
 
 
-    let invalid5  = [
+    let invalid5 = [
       // "Nb1c3",
       // "Nb8c6",
       "d2d3",
@@ -326,13 +335,12 @@ pub mod tests {
     ];
 
     tic = TicTacToe::default();
-    
+
     invalid6.iter().for_each(|alg| {
       tic.make_move(COORDS, alg).unwrap();
     });
 
     assert!(tic.make_move(COORDS, the_move).is_err());
-      
   }
 
   #[test]
@@ -341,9 +349,7 @@ pub mod tests {
     let mut tic = TicTacToe::default();
 
     test_valid_move("O-O", "Bármi", &mut tic)
-
   }
-
 
   #[test]
   fn bruh_test() {
@@ -369,8 +375,6 @@ pub mod tests {
 
     assert_eq!(Coordinates { row: 0, col: 0 }, Coordinates::new((0, 0)));
 
-
-
     assert_eq!(String::from("Rook"), format!("{}", PieceName::ROOK));
 
     assert_eq!(String::from("Knight"), format!("{}", PieceName::KNIGHT));
@@ -383,14 +387,33 @@ pub mod tests {
 
     assert_eq!(String::from("Pawn"), format!("{}", PieceName::PAWN));
 
-    assert_eq!(String::from("MoveError(InvalidMove)"), format!("{}", ChessBoard::default().make_move("Qb1b2", Color::White).err().unwrap()));
+    assert_eq!(
+      String::from("MoveError(InvalidMove)"),
+      format!(
+        "{}",
+        ChessBoard::default()
+          .make_move("Qb1b2", Color::White)
+          .err()
+          .unwrap()
+      )
+    );
 
-    assert_eq!(FenError::InvalidFormat, ChessBoard::try_from("0 0 0 0 0 0").err().unwrap());
-    assert_eq!(FenError::InvalidFormat, ChessBoard::try_from("f/f/f/f/f/f/f/f 0 0 0 0 0").err().unwrap());
-    assert_eq!(FenError::InvalidFormat, ChessBoard::try_from("ppppppp/f/f/f/f/f/f/f 0 0 0 0 0").err().unwrap());
+    assert_eq!(
+      FenError::InvalidFormat,
+      ChessBoard::try_from("0 0 0 0 0 0").err().unwrap()
+    );
+    assert_eq!(
+      FenError::InvalidFormat,
+      ChessBoard::try_from("f/f/f/f/f/f/f/f 0 0 0 0 0")
+        .err()
+        .unwrap()
+    );
+    assert_eq!(
+      FenError::InvalidFormat,
+      ChessBoard::try_from("ppppppp/f/f/f/f/f/f/f 0 0 0 0 0")
+        .err()
+        .unwrap()
+    );
     // assert_eq!(FenError::InvalidFormat, ChessBoard::try_from("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 1 1"));
-
   }
-
-
 }

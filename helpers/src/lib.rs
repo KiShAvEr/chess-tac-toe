@@ -1,7 +1,7 @@
 // #![allow(unused)]
 
-pub mod tictactoe;
 pub mod chess;
+pub mod tictactoe;
 
 use std::fmt::Display;
 

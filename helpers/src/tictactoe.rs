@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::{FenError, chesstactoe};
+use crate::{chesstactoe, FenError};
 use crate::{chesstactoe::Color, Coordinates, MoveError};
 
 use crate::chess::ChessBoard;
@@ -66,12 +66,7 @@ impl TicTacToe {
 
     res = res[0..res.len() - 1].to_owned();
 
-    res += &("+".to_owned()
-      + if (self.next == Color::White) {
-        "w"
-      } else {
-        "b"
-      });
+    res += &("+".to_owned() + if self.next == Color::White { "w" } else { "b" });
 
     Ok(res)
   }
@@ -79,7 +74,7 @@ impl TicTacToe {
   pub fn from_fen(input: &str) -> Result<Self, FenError> {
     let mut parts = input.split('+');
 
-    if (parts.clone().count() != 2) {
+    if parts.clone().count() != 2 {
       return Err(FenError::InvalidFormat);
     }
 
@@ -87,7 +82,7 @@ impl TicTacToe {
 
     let mut boards = boards_part.split('\\');
 
-    if (boards.clone().count() != 9) {
+    if boards.clone().count() != 9 {
       return Err(FenError::InvalidFormat);
     }
 
@@ -116,7 +111,7 @@ impl TicTacToe {
   }
 
   pub fn get_board(&self, board: Coordinates) -> Result<&ChessBoard, TicError> {
-    if (board.col > 2 || board.row > 2) {
+    if board.col > 2 || board.row > 2 {
       return Err(TicError::InvalidCoords);
     }
 
@@ -153,7 +148,7 @@ impl From<chesstactoe::TicTacToe> for TicTacToe {
   fn from(value: chesstactoe::TicTacToe) -> TicTacToe {
     let mut chesses = TicTacToe::default().chesses;
 
-    for i in 0..3 {}
+    for _i in 0..3 {}
 
     for (i, row) in chesses.iter_mut().enumerate() {
       for (j, chess) in row.iter_mut().enumerate().take(3) {

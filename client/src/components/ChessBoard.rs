@@ -4,8 +4,9 @@ use base64::Engine;
 use dioxus::prelude::*;
 use futures::stream::StreamExt;
 use helpers::{
+  chess::{ChessBoard, PieceName},
   chesstactoe::{game_client::GameClient, Color, MovePieceRequest},
- Coordinates, chess::{ChessBoard, PieceName}
+  Coordinates,
 };
 use include_dir::{include_dir, Dir};
 use once_cell::sync::Lazy;

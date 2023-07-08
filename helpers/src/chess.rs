@@ -1,9 +1,8 @@
-use std::{fmt::Display, collections::HashMap};
+use std::{collections::HashMap, fmt::Display};
 
 use rand::seq::SliceRandom;
 
-use crate::{Color, chesstactoe::chess::EndResult, FenError, MoveError, Coordinates};
-
+use crate::{chesstactoe::chess::EndResult, Color, Coordinates, FenError, MoveError};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Piece {
@@ -33,7 +32,6 @@ impl Display for PieceName {
     }
   }
 }
-
 
 #[derive(Debug)]
 pub enum ChessError {
@@ -79,7 +77,7 @@ impl TryFrom<&str> for ChessBoard {
   type Error = FenError;
 
   fn try_from(value: &str) -> Result<Self, Self::Error> {
-      ChessBoard::parse_fen(value)
+    ChessBoard::parse_fen(value)
   }
 }
 
@@ -185,7 +183,7 @@ impl ChessBoard {
       board[index] = row.try_into().unwrap();
     }
 
-    let next = match parts.next().unwrap() {
+    let _next = match parts.next().unwrap() {
       "w" => Color::White,
       "b" => Color::Black,
       _ => return Err(FenError::InvalidFormat),
@@ -200,16 +198,16 @@ impl ChessBoard {
       ((Color::White, Castling::Queenside), false),
     ]);
 
-    if (castle_part.contains('K')) {
+    if castle_part.contains('K') {
       castling.insert((Color::White, Castling::Kingside), true);
     }
-    if (castle_part.contains('Q')) {
+    if castle_part.contains('Q') {
       castling.insert((Color::White, Castling::Queenside), true);
     }
-    if (castle_part.contains('k')) {
+    if castle_part.contains('k') {
       castling.insert((Color::Black, Castling::Kingside), true);
     }
-    if (castle_part.contains('q')) {
+    if castle_part.contains('q') {
       castling.insert((Color::Black, Castling::Queenside), true);
     }
 
@@ -221,19 +219,19 @@ impl ChessBoard {
 
     board.reverse();
 
-    let end = if (!board.into_iter().any(|a| {
+    let end = if !board.into_iter().any(|a| {
       a.contains(&Some(Piece {
         name: PieceName::KING,
         color: Color::Black,
       }))
-    })) {
+    }) {
       EndResult::Color(Color::White as i32)
-    } else if (!board.into_iter().any(|a| {
+    } else if !board.into_iter().any(|a| {
       a.contains(&Some(Piece {
         name: PieceName::KING,
         color: Color::White,
       }))
-    })) {
+    }) {
       EndResult::Color(Color::Black as i32)
     } else {
       EndResult::None(true)
@@ -243,7 +241,7 @@ impl ChessBoard {
       board,
       end,
       castling,
-      en_passant: if (en_passant == "-") {
+      en_passant: if en_passant == "-" {
         None
       } else {
         Some(ChessBoard::get_square(en_passant)?)
@@ -260,7 +258,7 @@ impl ChessBoard {
 
   pub fn get_square(str: &str) -> Result<Coordinates, FenError> {
     let regex = regex!("[a-h]{1}[1-8]{1}");
-    if (!regex.is_match(str)) {
+    if !regex.is_match(str) {
       return Err(FenError::InvalidFormat);
     }
 
@@ -284,7 +282,7 @@ impl ChessBoard {
   pub fn get_tile(square: Coordinates) -> Result<String, FenError> {
     let chars = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 
-    if (square.row > 7 || square.col > 7) {
+    if square.row > 7 || square.col > 7 {
       return Err(FenError::InvalidSquare);
     }
 
@@ -325,15 +323,15 @@ impl ChessBoard {
       r"^((O-O-O)|(O-O)|([RNBKQ]{0,1}([a-h]{1}[1-8]{1})x{0,1}([a-h]{1}[1-8]{1}))|(([a-h]{1}[1-8]{1})x{0,1}([a-h]{1}[1-8]{1})[RNBKQ]{0,1}))$"
     );
 
-    if (!regex.is_match(move_string)) {
+    if !regex.is_match(move_string) {
       return Err(Box::new(FenError::InvalidFormat));
     }
 
-    if (self.end != EndResult::None(true)) {
+    if self.end != EndResult::None(true) {
       return Err(Box::new(MoveError::GameOver));
     }
 
-    if (move_string == "O-O-O" || move_string == "O-O") {
+    if move_string == "O-O-O" || move_string == "O-O" {
       let (rook_square, king_square, between_squares) = match (move_string, next) {
         ("O-O-O", Color::Black) => (
           ChessBoard::get_square("a8")?,
@@ -405,7 +403,7 @@ impl ChessBoard {
       name: piece_name,
     };
 
-    if (!move_string.contains('x')) {
+    if !move_string.contains('x') {
       if self.board[end_coords.row][end_coords.col].is_some() {
         return Ok(false);
       }
@@ -417,8 +415,8 @@ impl ChessBoard {
       }
     }
 
-    if (self.board[starting_coords.row][starting_coords.col].is_none()
-      || self.board[starting_coords.row][starting_coords.col].unwrap() != piece)
+    if self.board[starting_coords.row][starting_coords.col].is_none()
+      || self.board[starting_coords.row][starting_coords.col].unwrap() != piece
     {
       return Ok(false);
     }
@@ -453,8 +451,8 @@ impl ChessBoard {
         )
       }
       PieceName::KING => {
-        let diff = (starting_coords.row.abs_diff(end_coords.row) == 1
-          || starting_coords.col.abs_diff(end_coords.col) == 1);
+        let diff = starting_coords.row.abs_diff(end_coords.row) == 1
+          || starting_coords.col.abs_diff(end_coords.col) == 1;
         if diff {
           return Ok(
             ChessBoard::validate_bishop(&starting_coords, &end_coords, &self.board)
@@ -512,20 +510,18 @@ impl ChessBoard {
         return Ok(valid);
       }
     }
-
-    Ok(false)
   }
 
-  fn validate_check(
+  fn _validate_check(
     &self,
-    starting_coords: &Coordinates,
-    end_coords: &Coordinates,
-    board: &[[Option<Piece>; 8]; 8],
+    _starting_coords: &Coordinates,
+    _end_coords: &Coordinates,
+    _board: &[[Option<Piece>; 8]; 8],
     alg: &str,
     next: Color,
   ) -> bool {
     let mut fake_board = self.clone();
-    fake_board.make_move(alg, next);
+    fake_board.make_move(alg, next).unwrap();
     !fake_board.is_checked(&next)
   }
 
@@ -753,48 +749,48 @@ impl ChessBoard {
       for piece in row.iter() {
         match piece {
           Some(piece) => {
-            if (counter != 0) {
+            if counter != 0 {
               output += &counter.to_string();
             }
             counter = 0;
             match piece.name {
               PieceName::ROOK => {
-                output += if (piece.color == Color::White) {
+                output += if piece.color == Color::White {
                   "R"
                 } else {
                   "r"
                 }
               }
               PieceName::KNIGHT => {
-                output += if (piece.color == Color::White) {
+                output += if piece.color == Color::White {
                   "N"
                 } else {
                   "n"
                 }
               }
               PieceName::BISHOP => {
-                output += if (piece.color == Color::White) {
+                output += if piece.color == Color::White {
                   "B"
                 } else {
                   "b"
                 }
               }
               PieceName::QUEEN => {
-                output += if (piece.color == Color::White) {
+                output += if piece.color == Color::White {
                   "Q"
                 } else {
                   "q"
                 }
               }
               PieceName::KING => {
-                output += if (piece.color == Color::White) {
+                output += if piece.color == Color::White {
                   "K"
                 } else {
                   "k"
                 }
               }
               PieceName::PAWN => {
-                output += if (piece.color == Color::White) {
+                output += if piece.color == Color::White {
                   "P"
                 } else {
                   "p"
@@ -817,7 +813,7 @@ impl ChessBoard {
     output = output[0..output.len() - 1].to_owned();
 
     output += " ";
-    output += if (next == Color::White) { "w " } else { "b " };
+    output += if next == Color::White { "w " } else { "b " };
 
     let mut has_castling = false;
     for &(color, side) in &[
@@ -865,11 +861,11 @@ impl ChessBoard {
   }
 
   pub fn make_move(&mut self, alg: &str, next: Color) -> Result<(), Box<dyn std::error::Error>> {
-    if (!self.validate_move(alg, next)?) {
+    if !self.validate_move(alg, next)? {
       return Err(Box::new(ChessError::MoveError(MoveError::InvalidMove)));
     }
 
-    if (alg == "O-O" || alg == "O-O-O") {
+    if alg == "O-O" || alg == "O-O-O" {
       let (king_old, king_new, rook_old, rook_new) = match (alg, next) {
         ("O-O", Color::White) => (
           ChessBoard::get_square("e1").unwrap(),
@@ -914,7 +910,7 @@ impl ChessBoard {
       self.castling.insert((next, Castling::Kingside), false);
       self.castling.insert((next, Castling::Queenside), false);
 
-      if (next == Color::Black) {
+      if next == Color::Black {
         self.fullmove += 1;
       }
 
@@ -960,7 +956,7 @@ impl ChessBoard {
         Color::White => -1,
       };
 
-      let faszom = self.board[end_coords.row.checked_add_signed(dir).unwrap()][end_coords.col];
+      let _faszom = self.board[end_coords.row.checked_add_signed(dir).unwrap()][end_coords.col];
 
       self.board[end_coords.row.checked_add_signed(dir).unwrap()][end_coords.col] = None
     }
@@ -968,28 +964,28 @@ impl ChessBoard {
 
     self.board[end_coords.row][end_coords.col] = Some(piece);
 
-    if (piece.name == PieceName::KING) {
+    if piece.name == PieceName::KING {
       self.castling.insert((next, Castling::Kingside), false);
       self.castling.insert((next, Castling::Queenside), false);
-    } else if (piece.name == PieceName::ROOK) {
+    } else if piece.name == PieceName::ROOK {
       match next {
         Color::Black => {
-          if (starting_square == "a8") {
+          if starting_square == "a8" {
             self
               .castling
               .insert((Color::Black, Castling::Queenside), false);
-          } else if (starting_square == "h8") {
+          } else if starting_square == "h8" {
             self
               .castling
               .insert((Color::Black, Castling::Kingside), false);
           }
         }
         Color::White => {
-          if (starting_square == "a1") {
+          if starting_square == "a1" {
             self
               .castling
               .insert((Color::White, Castling::Queenside), false);
-          } else if (starting_square == "h1") {
+          } else if starting_square == "h1" {
             self
               .castling
               .insert((Color::White, Castling::Kingside), false);
@@ -997,7 +993,7 @@ impl ChessBoard {
         }
       }
     }
-    if (piece.name == PieceName::PAWN && (starting_coords.row.abs_diff(end_coords.row) == 2)) {
+    if piece.name == PieceName::PAWN && (starting_coords.row.abs_diff(end_coords.row) == 2) {
       self.en_passant = Some(Coordinates {
         row: (starting_coords.row + end_coords.row) / 2,
         col: starting_coords.col,
@@ -1006,7 +1002,7 @@ impl ChessBoard {
       self.en_passant = None;
     }
 
-    if (piece.name == PieceName::PAWN || alg.contains('x')) {
+    if piece.name == PieceName::PAWN || alg.contains('x') {
       self.halfmove = 0;
     } else {
       self.halfmove += 1;
@@ -1031,7 +1027,7 @@ impl ChessBoard {
       });
     }
 
-    if (next == Color::Black) {
+    if next == Color::Black {
       self.fullmove += 1;
     }
 
@@ -1047,7 +1043,7 @@ impl ChessBoard {
       })
       .count();
 
-    if (count >= 2) {
+    if count >= 2 {
       self.end = EndResult::Draw(true)
     }
 

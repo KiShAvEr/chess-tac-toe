@@ -58,7 +58,7 @@ fn app(cx: Scope) -> Element {
 
         cx.render(rsx! {
             style { "{style}" }
-            Router { 
+            Router {
                 Route { to: "/", MainScreen {} }
                 Route { to: "/game", GameScreen {} }
                 Route { to: "/game/new", GameScreen {} }
