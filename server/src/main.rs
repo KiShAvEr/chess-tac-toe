@@ -17,17 +17,14 @@ use helpers::{
   },
   tictactoe::{TicError, TicTacToe as HelperToe},
 };
+use tonic::transport::Server;
+use tonic::{Status, Request, Response};
 use std::{collections::HashMap, net::SocketAddr, sync::Arc, time::Duration};
 use tokio::sync::{
   mpsc::{self, Sender},
   Mutex,
 };
 use tokio_stream::wrappers::ReceiverStream;
-use tonic::{
-  codegen::http::{self, request},
-  transport::Server,
-  Request, Response, Status,
-};
 use uuid::{uuid, Uuid};
 
 #[derive(Debug, Default)]
