@@ -6,7 +6,7 @@ use dioxus_free_icons::{icons::io_icons::IoArrowBack, Icon};
 
 use helpers::{
   chesstactoe::{chess::EndResult, game_client::GameClient, Color, SubscribeBoardRequest},
-  TicTacToe,
+  tictactoe::TicTacToe,
 };
 use once_cell::sync::Lazy;
 use tokio::sync::Mutex;

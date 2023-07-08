@@ -5,7 +5,7 @@ use dioxus::prelude::*;
 use futures::stream::StreamExt;
 use helpers::{
   chesstactoe::{game_client::GameClient, Color, MovePieceRequest},
-  ChessBoard, Coordinates, PieceName,
+ Coordinates, chess::{ChessBoard, PieceName}
 };
 use include_dir::{include_dir, Dir};
 use once_cell::sync::Lazy;

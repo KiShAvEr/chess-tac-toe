@@ -24,9 +24,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
   let mut menu = MenuBar::new();
 
   let mut edit = MenuBar::new();
-  edit.add_native_item(MenuItem::Paste).unwrap();
-  edit.add_native_item(MenuItem::Copy).unwrap();
-  edit.add_native_item(MenuItem::Cut).unwrap();
+  edit.add_native_item(MenuItem::Paste);
+  edit.add_native_item(MenuItem::Copy);
+  edit.add_native_item(MenuItem::Cut);
 
   menu.add_submenu("Edit", true, edit);
 

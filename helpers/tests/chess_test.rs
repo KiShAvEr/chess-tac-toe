@@ -3,18 +3,15 @@
 pub mod tests {
   use helpers::{
     chesstactoe::{chess::EndResult, Color},
-    ChessBoard, Coordinates, TicTacToe,
+     Coordinates, tictactoe::TicTacToe, chess::{ChessBoard, PieceName}, FenError,
   };
 
-  const COORDS: Coordinates = Coordinates { row: 0, col: 0 };
+  const COORDS: Coordinates = Coordinates::new((0, 0));
 
   fn test_valid_move(alg: &str, res_fen: &str, tic: &mut TicTacToe) {
     println!("{alg}");
 
-    match tic.validate_move(COORDS, alg) {
-      Ok(is_valid) => assert!(is_valid),
-      Err(e) => panic!("Unexpected error {e}"),
-    }
+    assert!(tic.validate_move(COORDS, alg).is_ok_and(|is_valid| is_valid));
 
     tic.make_move(COORDS, alg).unwrap();
 
@@ -168,4 +165,232 @@ pub mod tests {
       tic.get_board(COORDS).unwrap().to_fen(Color::Black).unwrap()
     );
   }
+
+  #[test]
+  fn test_fen_conversion() {
+    const FEN1: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 0";
+
+    test_fen(FEN1);
+
+    const FEN2: &str = "Kn5Q/1P1pPN2/8/2P5/p3N3/1P2P3/1pk2p1n/8 w - - 0 1";
+
+    test_fen(FEN2);
+
+    const FEN3: &str = "1K3BQ1/p1P5/5p2/pp3Pp1/6P1/4b3/Pk6/r3n3 w - - 0 1";
+    
+    test_fen(FEN3);
+
+    let random_board = ChessBoard::random();
+
+    let fen4: &str = &random_board.to_fen(Color::White).unwrap();
+
+    let parsed_board = ChessBoard::try_from(fen4).unwrap();
+
+    assert_eq!(parsed_board, random_board);
+
+  }
+
+  fn test_fen(fen: &str) {
+    assert!(ChessBoard::parse_fen(fen).unwrap().to_fen(Color::White).unwrap() == fen);
+  }
+
+  #[test]
+  fn test_long_castles() {
+    let mut tic = TicTacToe::default();
+
+    let moves = [
+      ("Nb1c3", "rnbqkbnr/pppppppp/8/8/8/2N5/PPPPPPPP/R1BQKBNR b KQkq - 1 1"),
+      ("Nb8c6", "r1bqkbnr/pppppppp/2n5/8/8/2N5/PPPPPPPP/R1BQKBNR w KQkq - 2 2"),
+      ("d2d3", "r1bqkbnr/pppppppp/2n5/8/8/2NP4/PPP1PPPP/R1BQKBNR b KQkq - 0 2"),
+      ("d7d6", "r1bqkbnr/ppp1pppp/2np4/8/8/2NP4/PPP1PPPP/R1BQKBNR w KQkq - 0 3"),
+      ("Bc1e3", "r1bqkbnr/ppp1pppp/2np4/8/8/2NPB3/PPP1PPPP/R2QKBNR b KQkq - 1 3"),
+      ("Bc8e6", "r2qkbnr/ppp1pppp/2npb3/8/8/2NPB3/PPP1PPPP/R2QKBNR w KQkq - 2 4"),
+      ("Qd1d2", "r2qkbnr/ppp1pppp/2npb3/8/8/2NPB3/PPPQPPPP/R3KBNR b KQkq - 3 4"),
+      ("Qd8d7", "r3kbnr/pppqpppp/2npb3/8/8/2NPB3/PPPQPPPP/R3KBNR w KQkq - 4 5"),
+      ("O-O-O", "r3kbnr/pppqpppp/2npb3/8/8/2NPB3/PPPQPPPP/2KR1BNR b kq - 5 5"),
+      ("O-O-O", "2kr1bnr/pppqpppp/2npb3/8/8/2NPB3/PPPQPPPP/2KR1BNR w - - 6 6")
+    ];
+
+    moves.iter().for_each(|(alg, fen)| {
+      test_valid_move(alg, &fen, &mut tic)
+    });
+
+    let invalid1  = [
+      "Nb1c3",
+      "Nb8c6",
+      "d2d3",
+      "d7d6",
+      "Bc1e3",
+      "Bc8e6",
+      // "Qd1d2",
+      // "Qd8d7",
+    ];
+    
+    let the_move = "O-O-O";
+
+    tic = TicTacToe::default();
+
+    invalid1.iter().for_each(|alg| {
+      println!("{alg}");
+      tic.make_move(COORDS, alg).unwrap();
+    });
+
+    assert!(tic.make_move(COORDS, the_move).is_err());
+
+    let invalid2  = [
+      "Nb1c3",
+      "Nb8c6",
+      "d2d3",
+      "d7d6",
+      "Bc1e3",
+      "Bc8e6",
+      "Qd1d2",
+      // "Qd8d7",
+    ];
+
+    tic = TicTacToe::default();
+
+    invalid2.iter().for_each(|alg| {
+      tic.make_move(COORDS, alg).unwrap();
+    });
+
+    assert!(tic.make_move(COORDS, the_move).is_err());
+
+    let invalid3  = [
+      "Nb1c3",
+      "Nb8c6",
+      "d2d3",
+      "d7d6",
+      // "Bc1e3",
+      // "Bc8e6",
+      "Qd1d2",
+      "Qd8d7",
+    ];
+
+    tic = TicTacToe::default();
+
+    invalid3.iter().for_each(|alg| {
+      tic.make_move(COORDS, alg).unwrap();
+    });
+
+    assert!(tic.make_move(COORDS, the_move).is_err());
+
+    let invalid4 = [
+      "Nb1c3",
+      "Nb8c6",
+      "d2d3",
+      "d7d6",
+      "Bc1e3",
+      // "Bc8e6",
+      "Qd8d7",
+      "Qd1d2",
+    ];
+
+    tic = TicTacToe::default();
+
+    invalid4.iter().for_each(|alg| {
+      tic.make_move(COORDS, alg).unwrap();
+    });
+
+    assert!(tic.make_move(COORDS, the_move).is_err());
+
+
+    let invalid5  = [
+      // "Nb1c3",
+      // "Nb8c6",
+      "d2d3",
+      "d7d6",
+      "Bc1e3",
+      "Bc8e6",
+      "Qd1d2",
+      "Qd8d7",
+    ];
+
+    tic = TicTacToe::default();
+
+    invalid5.iter().for_each(|alg| {
+      tic.make_move(COORDS, alg).unwrap();
+    });
+
+    assert!(tic.make_move(COORDS, the_move).is_err());
+
+    let invalid6 = [
+      "Nb1c3",
+      // "Nb8c6",
+      "d7d6",
+      "d2d3",
+      "Bc8e6",
+      "Bc1e3",
+      "Qd8d7",
+      "Qd1d2",
+    ];
+
+    tic = TicTacToe::default();
+    
+    invalid6.iter().for_each(|alg| {
+      tic.make_move(COORDS, alg).unwrap();
+    });
+
+    assert!(tic.make_move(COORDS, the_move).is_err());
+      
+  }
+
+  #[test]
+  #[should_panic]
+  fn test_invalid_move_in_valid_move() {
+    let mut tic = TicTacToe::default();
+
+    test_valid_move("O-O", "Bármi", &mut tic)
+
+  }
+
+
+  #[test]
+  fn bruh_test() {
+    let mut tic = TicTacToe::default();
+
+    let res = tic.make_move(COORDS, "d2d5").err().unwrap();
+
+    println!("{res}");
+
+    let color = Color::Black;
+
+    assert_eq!(String::from("Black"), format!("{color}"));
+
+    let color = Color::White;
+
+    assert_eq!(String::from("White"), format!("{color}"));
+
+    const INVALID_FEN: &str = "invalid fen";
+
+    let fen_error = ChessBoard::try_from(INVALID_FEN).err().unwrap();
+
+    assert_eq!(String::from("InvalidFormat"), format!("{fen_error}"));
+
+    assert_eq!(Coordinates { row: 0, col: 0 }, Coordinates::new((0, 0)));
+
+
+
+    assert_eq!(String::from("Rook"), format!("{}", PieceName::ROOK));
+
+    assert_eq!(String::from("Knight"), format!("{}", PieceName::KNIGHT));
+
+    assert_eq!(String::from("Bishop"), format!("{}", PieceName::BISHOP));
+
+    assert_eq!(String::from("Queen"), format!("{}", PieceName::QUEEN));
+
+    assert_eq!(String::from("King"), format!("{}", PieceName::KING));
+
+    assert_eq!(String::from("Pawn"), format!("{}", PieceName::PAWN));
+
+    assert_eq!(String::from("MoveError(InvalidMove)"), format!("{}", ChessBoard::default().make_move("Qb1b2", Color::White).err().unwrap()));
+
+    assert_eq!(FenError::InvalidFormat, ChessBoard::try_from("0 0 0 0 0 0").err().unwrap());
+    assert_eq!(FenError::InvalidFormat, ChessBoard::try_from("f/f/f/f/f/f/f/f 0 0 0 0 0").err().unwrap());
+    assert_eq!(FenError::InvalidFormat, ChessBoard::try_from("ppppppp/f/f/f/f/f/f/f 0 0 0 0 0").err().unwrap());
+    // assert_eq!(FenError::InvalidFormat, ChessBoard::try_from("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 1 1"));
+
+  }
+
+
 }

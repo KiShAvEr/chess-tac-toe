@@ -14,7 +14,7 @@ use helpers::{
     game_server::{Game, GameServer},
     join_response::GameStatus,
   },
-  ChessBoard, TicError, TicTacToe as HelperToe,
+  chess::ChessBoard, tictactoe::{TicError, TicTacToe as HelperToe},
 };
 use std::{collections::HashMap, net::SocketAddr, sync::Arc, time::Duration};
 use tokio::sync::{
